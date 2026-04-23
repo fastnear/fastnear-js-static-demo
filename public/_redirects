@@ -1,6 +1,7 @@
 /near.js https://unpkg.com/@fastnear/api/dist/umd/browser.global.js 301
 /near-iife.js https://unpkg.com/@fastnear/api/dist/umd/browser.global.js 301
 /near-umd.js https://unpkg.com/@fastnear/api/dist/umd/browser.global.js 301
+/near-node.mjs /agents.js 301
 /near-esm.js https://unpkg.com/@fastnear/api/dist/esm/index.js 301
 /near-cjs.js https://unpkg.com/@fastnear/api/dist/cjs/index.cjs 301
 /near.mjs https://unpkg.com/@fastnear/api/dist/esm/index.js 301
