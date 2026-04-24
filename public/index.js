@@ -137,6 +137,23 @@ export function getHostedAssetUrls(origin = getHostedAssetOrigin()) {
   };
 }
 
+export function isOffOriginUrl(url, currentOrigin = getHostedAssetOrigin()) {
+  if (typeof url !== "string" || !url) {
+    return false;
+  }
+
+  try {
+    const resolved = new URL(url, `${currentOrigin}/`);
+    return /^https?:$/.test(resolved.protocol) && resolved.origin !== currentOrigin;
+  } catch {
+    return false;
+  }
+}
+
+function textLinkClass(url, currentOrigin = getHostedAssetOrigin()) {
+  return isOffOriginUrl(url, currentOrigin) ? "text-link external-link-indicator" : "text-link";
+}
+
 export function rewriteHostedAssetUrlsInText(text, assetUrls = getHostedAssetUrls()) {
   if (typeof text !== "string" || !text) {
     return text;
@@ -456,7 +473,7 @@ function buildQuickstartSupportCard(support) {
           bodyHtml: `${escapeHtml(support.apiKeySummary || `Set ${support.apiKeyEnvVar} before running the authenticated snippets.`).replace(
             support.apiKeyEnvVar,
             `<code>${escapeHtml(support.apiKeyEnvVar)}</code>`
-          )} Free trial credits are available at <a class="text-link" href="${escapeHtml(support.trialCreditsUrl)}" rel="noopener noreferrer" target="_blank">${escapeHtml(support.trialCreditsLabel)}</a>.`,
+          )} Free trial credits are available at <a class="${escapeHtml(textLinkClass(support.trialCreditsUrl))}" href="${escapeHtml(support.trialCreditsUrl)}" rel="noopener noreferrer" target="_blank">${escapeHtml(support.trialCreditsLabel)}</a>.`,
           compact: true,
         })}
       </div>
@@ -659,10 +676,10 @@ function buildCatalogNote(generated) {
   return `
     <p class="catalog-note-copy">
       These task helpers are synced from
-      <a class="text-link" href="${escapeHtml(generated.catalogUrl)}" rel="noopener noreferrer" target="_blank">recipes.json</a>
+      <a class="${escapeHtml(textLinkClass(generated.catalogUrl))}" href="${escapeHtml(generated.catalogUrl)}" rel="noopener noreferrer" target="_blank">recipes.json</a>
       and stay aligned with
-      <a class="text-link" href="${escapeHtml(generated.support.hostedAgentEntry)}" rel="noopener noreferrer" target="_blank">agents.js</a>,
-      <a class="text-link" href="${escapeHtml(generated.support.hostedLlmsUrl || `${CANONICAL_HOSTED_ASSET_ORIGIN}/llms.txt`)}" rel="noopener noreferrer" target="_blank">llms.txt</a>,
+      <a class="${escapeHtml(textLinkClass(generated.support.hostedAgentEntry))}" href="${escapeHtml(generated.support.hostedAgentEntry)}" rel="noopener noreferrer" target="_blank">agents.js</a>,
+      <a class="${escapeHtml(textLinkClass(generated.support.hostedLlmsUrl || `${CANONICAL_HOSTED_ASSET_ORIGIN}/llms.txt`))}" href="${escapeHtml(generated.support.hostedLlmsUrl || `${CANONICAL_HOSTED_ASSET_ORIGIN}/llms.txt`)}" rel="noopener noreferrer" target="_blank">llms.txt</a>,
       and the broader FastNear docs. Start with the lower-level families above when you want exact control; use these helpers when you want the shortest task path. The full snippet variants stay in the catalog even though this landing page shows one primary path per task.
     </p>
   `;
@@ -1042,7 +1059,7 @@ export function wireUpAppLate() {
       if (boardResult.status === "fulfilled") {
         renderBerryFastBoardPreview(board, boardResult.value.image);
         if (boardNote) {
-          boardNote.innerHTML = `Live crop from <a class="text-link" href="https://berry.fast" rel="noopener noreferrer" target="_blank">berry.fast</a> region <code>${berryFastPreviewRegion.rx},${berryFastPreviewRegion.ry}</code>, tightened around the three-face cluster.`;
+          boardNote.innerHTML = `Live crop from <a class="text-link external-link-indicator" href="https://berry.fast" rel="noopener noreferrer" target="_blank">berry.fast</a> region <code>${berryFastPreviewRegion.rx},${berryFastPreviewRegion.ry}</code>, tightened around the three-face cluster.`;
         }
       } else {
         console.error("Failed to fetch berry.fast board preview:", boardResult.reason);
