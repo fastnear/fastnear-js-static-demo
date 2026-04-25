@@ -59,6 +59,7 @@ const LLMS_REQUIRED_SECTIONS = [
   "Canonical machine-readable catalog:",
   "Canonical hosted agent wrapper:",
   "Mental model:",
+  "Result shapes:",
   "Discovery order:",
   "Families:",
   "Recipe index format:",
