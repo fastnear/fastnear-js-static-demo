@@ -29,41 +29,6 @@
       }
     },
     {
-      "id": "hot-wallet",
-      "name": "HOT Wallet",
-      "icon": "https://app.hot-labs.org/images/hot/hot-icon.png",
-      "description": "Secure Multichain wallet. Manage assets, refuel gas, and mine $HOT on any device with HOT Wallet",
-      "website": "https://hot-labs.org/wallet",
-      "version": "1.0.0",
-      "executor": "https://raw.githubusercontent.com/fastnear/near-connect/refs/heads/main/repository/hotwallet.js",
-      "type": "sandbox",
-      "platform": {
-        "android": "https://play.google.com/store/apps/details?id=app.herewallet.hot&hl=en",
-        "ios": "https://apps.apple.com/us/app/hot-wallet/id6740916148",
-        "chrome": "https://chromewebstore.google.com/detail/hot-wallet/mpengabcnhhjjgleiodimegnkpcenbk",
-        "firefox": "https://addons.mozilla.org/en-US/firefox/addon/hot-wallet",
-        "tga": "https://t.me/hot_wallet/app"
-      },
-      "features": {
-        "signMessage": true,
-        "signInWithoutAddKey": true,
-        "signAndSendTransaction": true,
-        "signAndSendTransactions": true
-      },
-      "permissions": {
-        "storage": true,
-        "allowsOpen": [
-          "https://download.hot-labs.org",
-          "https://hot-labs.org/wallet",
-          "https://t.me/hot_wallet/app",
-          "https://play.google.com",
-          "https://apps.apple.com",
-          "hotwallet://",
-          "https://wallet.near.org"
-        ]
-      }
-    },
-    {
       "id": "intear-wallet",
       "name": "Intear Wallet",
       "icon": "https://storage.herewallet.app/upload/3f24b26bb142cd65ee694b78f8b3004976ebd97d9fc82f4c07d99b27bc124672.png",

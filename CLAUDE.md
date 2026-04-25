@@ -85,7 +85,7 @@ unreachable. See the README for the exact incantation.
 
 ### Wallet Manifest (`manifest.json`)
 
-Local manifest listing 8 wallets: MyNearWallet, HOT Wallet, Intear Wallet, Meteor Wallet, OKX Wallet, NEAR Mobile, Nightly Wallet, and Wallet Connect. Each entry specifies an `executor` URL (JS loaded into a sandboxed `about:srcdoc` iframe by near-connect) and `permissions`.
+Local manifest listing 7 wallets: MyNearWallet, Intear Wallet, Meteor Wallet, OKX Wallet, NEAR Mobile, Nightly Wallet, and Wallet Connect. Each entry specifies an `executor` URL (JS loaded into a sandboxed `about:srcdoc` iframe by near-connect) and `permissions`.
 
 Executor URLs point to `https://raw.githubusercontent.com/fastnear/near-connect/refs/heads/main/repository/<wallet>.js` — they track the `main` branch and update automatically when the built files are pushed.
 
