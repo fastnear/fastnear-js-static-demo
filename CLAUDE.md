@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-A minimal static HTML demo of the `@fastnear/api` and `@fastnear/wallet` packages, using Berry Club — a collaborative pixel art board on the NEAR blockchain (`berryclub.ek.near`).
+A minimal static HTML demo of the `@fastnear/api` and `@fastnear/wallet` packages. The mainnet demo card targets two contracts in tandem: **Buy 25 🥑** writes to `berryclub.ek.near` (the original 50×50 board), and **Draw Random Green Pixel** writes to `berryfast.near` (the larger collaborative canvas behind `https://berry.fast`, which is also the board rendered in the live preview).
 
 Serves as the primary test fixture for the `@fastnear/wallet` multi-wallet connector's session persistence, sign-in, and transaction flows.
 
@@ -97,7 +97,10 @@ The `walletConnect` option flows: `nearWallet.connect()` → `@fastnear/wallet` 
 
 ### FunctionCall Access Keys
 
-When signing in via MyNearWallet with a `contractId`, the MNW executor generates a random key pair, stores the private key as `functionCallKey` in the sandboxed iframe's localStorage, and sends the public key to MNW for an on-chain AddKey transaction. On subsequent zero-deposit function calls, `signAndSendTransaction()` tries signing locally with this key before falling back to the wallet popup. This enables zero-popup transactions for methods like `draw` and `buy_tokens`.
+The demo uses two FCKs in parallel:
+
+1. **Sign-in FCK on `berryclub.ek.near`.** When signing in via MyNearWallet with `contractId: currentContractId` (= `berryclub.ek.near`), the MNW executor generates a key pair, stores the private key in the sandboxed iframe's localStorage, and sends the public key to MNW for an on-chain `AddKey`. (`buy_tokens` has a 0.01 NEAR deposit, so even with this FCK, Buy still requires a wallet popup — FCKs only sign zero-deposit calls. The FCK is mostly there as the standard sign-in artifact.)
+2. **Programmatic FCK on `berryfast.near`** (post-sign-in). After `nearWallet.onConnect` fires, the demo calls `nearWallet.addFunctionCallKey({ contractId: "berryfast.near", methodNames: ["draw"], network: "mainnet" })` (added in `@fastnear/wallet@1.1.4`). This generates a second key locally and sends an `AddKey` tx via MNW (one popup) so subsequent `draw` calls on `berryfast.near` sign silently. A per-account marker in `localStorage` (`fastnear-demo:berryfast-fck-added:<accountId>`) prevents repeated AddKey attempts on each sign-in. The marker is cleared on disconnect so the next sign-in re-attempts.
 
 ### RPC Endpoints
 
@@ -109,8 +112,8 @@ These are configured in the near-connect MNW executor (`near-wallets/src/mnw.ts`
 
 ## Dependencies
 
-- **`@fastnear/api`** (`^0.9.12`) — NEAR blockchain API, loaded as UMD global (`window.near`)
-- **`@fastnear/wallet`** (`^0.9.12`) — Multi-wallet connector, loaded as UMD global (`window.nearWallet`); wraps `@fastnear/near-connect` (`^0.10.4`)
+- **`@fastnear/api`** (`^1.1.4`) — NEAR blockchain API, loaded as UMD global (`window.near`)
+- **`@fastnear/wallet`** (`^1.1.4`) — Multi-wallet connector, loaded as UMD global (`window.nearWallet`); wraps `@fastnear/near-connect` (`^0.12.1`)
 
 Loaded via bare unpkg URLs (no pinned version), e.g. `https://unpkg.com/@fastnear/wallet/dist/umd/browser.global.js`. These resolve to `latest` on npm. To cache-bust after publishing, hard-refresh the page (`Cmd+Shift+R`) and verify the version at `https://unpkg.com/@fastnear/wallet/package.json`.
 

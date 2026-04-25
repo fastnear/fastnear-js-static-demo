@@ -205,25 +205,27 @@ function onContractChange(listener) {
   contractChangeListeners.add(listener);
   return () => contractChangeListeners.delete(listener);
 }
-const BoardHeight = 50;
-// Box on the 50x50 berryclub.ek.near board that the "Draw Random Green Pixel"
-// action avoids, so the centered face cluster doesn't get clobbered.
-const MainnetFaceSafeZone = { left: 10, top: 15, right: 39, bottom: 34 };
 const DefaultBalance = "0.0000 🥑";
 
-function randomMainnetPerimeterPixel() {
-  while (true) {
-    const x = Math.floor(Math.random() * BoardHeight);
-    const y = Math.floor(Math.random() * BoardHeight);
-    if (
-      x < MainnetFaceSafeZone.left ||
-      x > MainnetFaceSafeZone.right ||
-      y < MainnetFaceSafeZone.top ||
-      y > MainnetFaceSafeZone.bottom
-    ) {
-      return { x, y };
-    }
-  }
+// "Draw Random Green Pixel" targets berryfast.near (the contract behind the
+// canvas preview), not berryclub.ek.near. The visible viewport is region
+// (-1, 0) crop (2, 0, 124, 46) at 8x scale, which maps to global pixel
+// coords x ∈ [-126, -3], y ∈ [0, 45]. The dense face image fills y ∈ [0, 41];
+// the sparse bottom strip y ∈ [42, 45] hosts the imperfect red frame and is
+// mostly empty — a green pixel there appears clearly without clobbering the
+// faces.
+const BerryFastDrawContract = "berryfast.near";
+const BerryFastDrawZone = {
+  xMin: -126, xMax: -3,
+  yMin: 42,   yMax: 45,
+};
+
+function randomBerryFastVisiblePixel() {
+  const xRange = BerryFastDrawZone.xMax - BerryFastDrawZone.xMin + 1;
+  const yRange = BerryFastDrawZone.yMax - BerryFastDrawZone.yMin + 1;
+  const x = BerryFastDrawZone.xMin + Math.floor(Math.random() * xRange);
+  const y = BerryFastDrawZone.yMin + Math.floor(Math.random() * yRange);
+  return { x, y };
 }
 const berryFastApiBase = "https://api.berry.fastnear.com";
 const berryFastRegionSize = 128;
@@ -253,10 +255,10 @@ const demoConfigs = {
     cardKicker: "Wallet-backed example",
     cardTitle: "Draw or buy tokens",
     cardNote:
-      "Live on berryclub.ek.near. Draw paints a random green pixel outside the face cluster; Buy spends 0.01 NEAR for 25 🥑.",
+      "Buy 25 🥑 spends 0.01 NEAR on berryclub.ek.near. Draw paints a random green pixel onto berryfast.near (the visible board) just below the three faces.",
     signinTitle: "Sign in to draw or buy 🥑",
     signinNoteHtml:
-      "Connect any wallet to try <code>draw</code> or <code>buy_tokens</code> on <code>berryclub.ek.near</code> — all from the browser.",
+      "Connect any wallet to try <code>draw</code> on <code>berryfast.near</code> (the visible board) and <code>buy_tokens</code> on <code>berryclub.ek.near</code> — all from the browser.",
     primaryMetric: {
       label: "Total supply",
       fetch: () => near.ft.totalSupply({ contractId: currentContractId }),
@@ -271,11 +273,12 @@ const demoConfigs = {
     primaryAction: {
       label: "Draw Random Green Pixel",
       methodName: "draw",
-      gas: "100 Tgas",
+      contractId: BerryFastDrawContract,
+      gas: "30 Tgas",
       deposit: "0",
       buildArgs: () => {
-        const { x, y } = randomMainnetPerimeterPixel();
-        return { pixels: [{ x, y, color: 65280 }] };
+        const { x, y } = randomBerryFastVisiblePixel();
+        return { pixels: [{ x, y, color: "00FF00" }] };
       },
     },
     secondaryAction: {
@@ -287,7 +290,7 @@ const demoConfigs = {
     },
     showBoardPreview: true,
     disabledNoteHtml: () =>
-      `Draw and Buy are <code>berryclub.ek.near</code>-only — change the target contract back to <code>berryclub.ek.near</code> to enable, or use the console snippets below to call <code>app.contractId</code> directly.`,
+      `Draw (writes to <code>berryfast.near</code>) and Buy (writes to <code>berryclub.ek.near</code>) only fire when the target contract above is the default <code>berryclub.ek.near</code>. Switch back to re-enable, or use the console snippets below to call <code>app.contractId</code> directly.`,
   },
   testnet: {
     sectionTitle: "A testnet counter on the same FastNear runtime.",
@@ -1772,7 +1775,7 @@ export function wireUpAppLate() {
       // call replaces the connector-format nearWallet.sendTransaction.
       const result = await near.recipes.functionCall({
         network: currentNetwork,
-        receiverId: currentContractId,
+        receiverId: actionSpec.contractId ?? currentContractId,
         methodName: actionSpec.methodName,
         args: actionSpec.buildArgs(),
         gas: cu(actionSpec.gas),
@@ -1821,6 +1824,39 @@ export function wireUpAppLate() {
       setScopedContractId(currentContractId);
     }
     updateUI();
+
+    // Best-effort: grant zero-popup signing for berryfast.near's `draw` so
+    // the mainnet "Draw Random Green Pixel" button doesn't open a wallet
+    // popup on every tx. The FCK created at sign-in is scoped to
+    // currentContractId (berryclub.ek.near for Buy 25 🥑); berryfast.near
+    // needs its own FCK. Requires @fastnear/wallet 1.1.4+ —
+    // gracefully skipped on older bundles.
+    if (
+      result?.network === "mainnet" &&
+      result?.accountId &&
+      typeof nearWallet.addFunctionCallKey === "function"
+    ) {
+      const marker = `fastnear-demo:berryfast-fck-added:${result.accountId}`;
+      if (!localStorage.getItem(marker)) {
+        // Fire-and-forget: don't block UI updates on the AddKey popup.
+        nearWallet
+          .addFunctionCallKey({
+            contractId: BerryFastDrawContract,
+            methodNames: ["draw"],
+            network: "mainnet",
+          })
+          .then(() => {
+            localStorage.setItem(marker, "1");
+            console.log(`Added ${BerryFastDrawContract} FCK for ${result.accountId} (silent draws enabled)`);
+          })
+          .catch((err) => {
+            console.warn(
+              `Failed to add ${BerryFastDrawContract} FCK (Draw will open wallet popup):`,
+              err,
+            );
+          });
+      }
+    }
   });
 
   nearWallet.onDisconnect((info) => {
@@ -1838,6 +1874,15 @@ export function wireUpAppLate() {
         },
         info.network,
       );
+    }
+    // Clear the per-account "berryfast FCK already added" markers so a
+    // subsequent sign-in re-attempts the AddKey. (MNW's signOut deletes
+    // its tracked on-chain FCK as part of the disconnect flow.)
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("fastnear-demo:berryfast-fck-added:")) {
+        localStorage.removeItem(key);
+      }
     }
     setScopedContractId(null);
     updateUI();
