@@ -2,10 +2,229 @@
 /* global near, nearWallet */
 /* ^ UMD globals loaded via <script> tags in index.html */
 
-const contractId = "berryclub.ek.near";
-const defaultNetwork = "mainnet";
+const SUPPORTED_NETWORKS = ["mainnet", "testnet"];
+const DEFAULT_NETWORK = "mainnet";
+const DEFAULT_CONTRACT_BY_NETWORK = {
+  mainnet: "berryclub.ek.near",
+  testnet: "count.mike.testnet",
+};
+const DEFAULT_CONTRACT_ID = DEFAULT_CONTRACT_BY_NETWORK[DEFAULT_NETWORK];
+
+const NETWORK_STORAGE_KEY = "network";
+const NETWORK_URL_PARAM = "network";
+const CONTRACT_ID_URL_PARAM = "contract";
+const CONTRACT_ID_PATTERN = /^[a-z\d]+(?:[._-][a-z\d]+)*$/;
+const LEGACY_CONTRACT_ID_STORAGE_KEY = "contractId";
+const LEGACY_SCOPED_CONTRACT_ID_STORAGE_KEY = "scopedContractId";
+// Records which network the wallet was last signed into so we can detect a
+// page-load mismatch (e.g. ?network=… URL change) and avoid using a
+// mainnet account against a testnet contract.
+const LAST_SIGN_IN_NETWORK_KEY = "fastnear-js:lastSignInNetwork";
+
+function contractIdStorageKey(network) {
+  return `contractId:${network}`;
+}
+
+function scopedContractIdStorageKey(network) {
+  return `scopedContractId:${network}`;
+}
+
+function defaultContractFor(network) {
+  return DEFAULT_CONTRACT_BY_NETWORK[network] || DEFAULT_CONTRACT_ID;
+}
+
+let currentNetwork = DEFAULT_NETWORK;
+let currentContractId = defaultContractFor(currentNetwork);
+let scopedContractId = null;
+const contractChangeListeners = new Set();
+
+function isValidNetwork(value) {
+  return typeof value === "string" && SUPPORTED_NETWORKS.includes(value);
+}
+
+function isValidContractId(value) {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  return trimmed.length >= 2 && trimmed.length <= 64 && CONTRACT_ID_PATTERN.test(trimmed);
+}
+
+function resolveInitialNetwork() {
+  try {
+    const params = new URLSearchParams(globalThis.location?.search || "");
+    const fromUrl = params.get(NETWORK_URL_PARAM);
+    if (isValidNetwork(fromUrl)) return fromUrl;
+  } catch {}
+  try {
+    const fromStorage = globalThis.localStorage?.getItem(NETWORK_STORAGE_KEY);
+    if (isValidNetwork(fromStorage)) return fromStorage;
+  } catch {}
+  return DEFAULT_NETWORK;
+}
+
+function resolveInitialContractId(network) {
+  try {
+    const params = new URLSearchParams(globalThis.location?.search || "");
+    const fromUrl = params.get(CONTRACT_ID_URL_PARAM);
+    if (fromUrl && isValidContractId(fromUrl)) return fromUrl.trim();
+  } catch {}
+  try {
+    const fromStorage = globalThis.localStorage?.getItem(contractIdStorageKey(network));
+    if (fromStorage && isValidContractId(fromStorage)) return fromStorage.trim();
+  } catch {}
+  // Back-compat: legacy unprefixed "contractId" key predates network namespacing; consume it into mainnet.
+  if (network === "mainnet") {
+    try {
+      const legacy = globalThis.localStorage?.getItem(LEGACY_CONTRACT_ID_STORAGE_KEY);
+      if (legacy && isValidContractId(legacy)) {
+        globalThis.localStorage?.setItem(contractIdStorageKey("mainnet"), legacy.trim());
+        globalThis.localStorage?.removeItem(LEGACY_CONTRACT_ID_STORAGE_KEY);
+        return legacy.trim();
+      }
+    } catch {}
+  }
+  return defaultContractFor(network);
+}
+
+function resolveInitialScopedContractId(network) {
+  try {
+    const stored = globalThis.localStorage?.getItem(scopedContractIdStorageKey(network));
+    if (stored && isValidContractId(stored)) return stored.trim();
+  } catch {}
+  if (network === "mainnet") {
+    try {
+      const legacy = globalThis.localStorage?.getItem(LEGACY_SCOPED_CONTRACT_ID_STORAGE_KEY);
+      if (legacy && isValidContractId(legacy)) {
+        globalThis.localStorage?.setItem(scopedContractIdStorageKey("mainnet"), legacy.trim());
+        globalThis.localStorage?.removeItem(LEGACY_SCOPED_CONTRACT_ID_STORAGE_KEY);
+        return legacy.trim();
+      }
+    } catch {}
+  }
+  return null;
+}
+
+function persistContractId(value) {
+  try {
+    const key = contractIdStorageKey(currentNetwork);
+    if (value && value !== defaultContractFor(currentNetwork)) {
+      globalThis.localStorage?.setItem(key, value);
+    } else {
+      globalThis.localStorage?.removeItem(key);
+    }
+  } catch {}
+}
+
+function syncContractIdToUrl(value) {
+  try {
+    const url = new URL(globalThis.location?.href || "");
+    if (value && value !== defaultContractFor(currentNetwork)) {
+      url.searchParams.set(CONTRACT_ID_URL_PARAM, value);
+    } else {
+      url.searchParams.delete(CONTRACT_ID_URL_PARAM);
+    }
+    globalThis.history?.replaceState(null, "", url.toString());
+  } catch {}
+}
+
+function persistNetwork(value) {
+  try {
+    if (value && value !== DEFAULT_NETWORK) {
+      globalThis.localStorage?.setItem(NETWORK_STORAGE_KEY, value);
+    } else {
+      globalThis.localStorage?.removeItem(NETWORK_STORAGE_KEY);
+    }
+  } catch {}
+}
+
+function syncNetworkToUrl(value) {
+  try {
+    const url = new URL(globalThis.location?.href || "");
+    if (value && value !== DEFAULT_NETWORK) {
+      url.searchParams.set(NETWORK_URL_PARAM, value);
+    } else {
+      url.searchParams.delete(NETWORK_URL_PARAM);
+    }
+    // Clear the contract param — the new network has its own default; reading URL on reload
+    // would otherwise keep the old-network contract. localStorage per-network preserves custom picks.
+    url.searchParams.delete(CONTRACT_ID_URL_PARAM);
+    globalThis.history?.replaceState(null, "", url.toString());
+  } catch {}
+}
+
+function setContractId(next) {
+  if (!isValidContractId(next)) return false;
+  const trimmed = next.trim();
+  if (trimmed === currentContractId) return false;
+  currentContractId = trimmed;
+  persistContractId(trimmed);
+  syncContractIdToUrl(trimmed);
+  for (const listener of contractChangeListeners) {
+    try { listener(currentContractId); } catch (err) { console.error("contract-change listener failed:", err); }
+  }
+  return true;
+}
+
+function setScopedContractId(next) {
+  const key = scopedContractIdStorageKey(currentNetwork);
+  if (!next) {
+    scopedContractId = null;
+    try { globalThis.localStorage?.removeItem(key); } catch {}
+    return;
+  }
+  if (!isValidContractId(next)) return;
+  scopedContractId = next.trim();
+  try { globalThis.localStorage?.setItem(key, scopedContractId); } catch {}
+}
+
+// One-time sweep of orphan keys from the previous page-side per-network
+// session shim (now obsolete — the wallet library handles network-namespacing
+// natively). Safe to run on every load: idempotent once the legacy keys are
+// gone.
+function cleanupLegacyPageStorage() {
+  try {
+    globalThis.localStorage?.removeItem(LAST_SIGN_IN_NETWORK_KEY);
+    globalThis.localStorage?.removeItem("fastnear-js:session:mainnet");
+    globalThis.localStorage?.removeItem("fastnear-js:session:testnet");
+  } catch {}
+}
+
+function setNetwork(next) {
+  if (!isValidNetwork(next)) return false;
+  if (next === currentNetwork) return false;
+  persistNetwork(next);
+  syncNetworkToUrl(next);
+  // Full reload: near.config + nearWallet are initialized with the current
+  // network at boot. The wallet library now keys storage per-network, so each
+  // network restores its own session if any.
+  globalThis.location?.reload();
+  return true;
+}
+
+function onContractChange(listener) {
+  if (typeof listener !== "function") return () => {};
+  contractChangeListeners.add(listener);
+  return () => contractChangeListeners.delete(listener);
+}
 const BoardHeight = 50;
+// Box on the 50x50 berryclub.ek.near board that the "Draw Random Green Pixel"
+// action avoids, so the centered face cluster doesn't get clobbered.
+const MainnetFaceSafeZone = { left: 10, top: 15, right: 39, bottom: 34 };
 const DefaultBalance = "0.0000 🥑";
+
+function randomMainnetPerimeterPixel() {
+  while (true) {
+    const x = Math.floor(Math.random() * BoardHeight);
+    const y = Math.floor(Math.random() * BoardHeight);
+    if (
+      x < MainnetFaceSafeZone.left ||
+      x > MainnetFaceSafeZone.right ||
+      y < MainnetFaceSafeZone.top ||
+      y > MainnetFaceSafeZone.bottom
+    ) {
+      return { x, y };
+    }
+  }
+}
 const berryFastApiBase = "https://api.berry.fastnear.com";
 const berryFastRegionSize = 128;
 const berryFastPixelStride = 6;
@@ -15,11 +234,100 @@ const berryFastPreviewScale = 8;
 const walletManifest = "./manifest.json";
 const walletConnect = { projectId: "4b2c7201ce4c03e0fb59895a2c251110" };
 const walletOptions = {
-  network: defaultNetwork,
-  contractId,
+  get network() {
+    return currentNetwork;
+  },
+  get contractId() {
+    return currentContractId;
+  },
   manifest: walletManifest,
   walletConnect,
 };
+
+const demoConfigs = {
+  mainnet: {
+    sectionTitle: "Berry Club and berry.fast show the same library working in real apps.",
+    sectionSummaryHtml:
+      "The same FastNear JS runtime driving a live app — a berry.fast board crop and wallet-backed Berry Club actions.",
+    previewTitle: "berry.fast board preview",
+    cardKicker: "Wallet-backed example",
+    cardTitle: "Draw or buy tokens",
+    cardNote:
+      "Live on berryclub.ek.near. Draw paints a random green pixel outside the face cluster; Buy spends 0.01 NEAR for 25 🥑.",
+    signinTitle: "Sign in to draw or buy 🥑",
+    signinNoteHtml:
+      "Connect any wallet to try <code>draw</code> or <code>buy_tokens</code> on <code>berryclub.ek.near</code> — all from the browser.",
+    primaryMetric: {
+      label: "Total supply",
+      fetch: () => near.view({ contractId: currentContractId, methodName: "ft_total_supply", args: {} }),
+      format: (raw) => (raw ? `${(parseFloat(raw) / 1e18).toFixed(4)} 🥑` : "—"),
+    },
+    secondaryMetric: {
+      label: "Your balance",
+      requiresAccount: true,
+      fetch: (accountId) => near.view({ contractId: currentContractId, methodName: "get_account", args: { account_id: accountId } }),
+      format: (raw) => (raw && !isNaN(raw.avocado_balance) ? `${(parseFloat(raw.avocado_balance) / 1e18).toFixed(4)} 🥑` : DefaultBalance),
+    },
+    primaryAction: {
+      label: "Draw Random Green Pixel",
+      methodName: "draw",
+      gas: "100 Tgas",
+      deposit: "0",
+      buildArgs: () => {
+        const { x, y } = randomMainnetPerimeterPixel();
+        return { pixels: [{ x, y, color: 65280 }] };
+      },
+    },
+    secondaryAction: {
+      label: "Buy 25 🥑",
+      methodName: "buy_tokens",
+      gas: "100 Tgas",
+      deposit: "0.01 NEAR",
+      buildArgs: () => ({}),
+    },
+    showBoardPreview: true,
+    disabledNoteHtml: () =>
+      `Draw and Buy are <code>berryclub.ek.near</code>-only — change the target contract back to <code>berryclub.ek.near</code> to enable, or use the console snippets below to call <code>app.contractId</code> directly.`,
+  },
+  testnet: {
+    sectionTitle: "A testnet counter on the same FastNear runtime.",
+    sectionSummaryHtml:
+      "The same library driving berry.fast — pointed at <code>count.mike.testnet</code> for a one-method demo.",
+    previewTitle: "Counter preview",
+    cardKicker: "Wallet-backed example",
+    cardTitle: "Increase the counter",
+    cardNote:
+      "Live on count.mike.testnet. One zero-arg method — each tap bumps the on-chain count by 1.",
+    signinTitle: "Sign in to increase the counter",
+    signinNoteHtml:
+      "Connect any wallet to call <code>increase</code> on <code>count.mike.testnet</code> — one zero-arg method, all from the browser.",
+    primaryMetric: {
+      label: "Current count",
+      fetch: () => near.view({ contractId: currentContractId, methodName: "get_count", args: {} }),
+      format: (raw) => (raw != null ? String(raw) : "—"),
+    },
+    secondaryMetric: null,
+    primaryAction: {
+      label: "Increase counter",
+      methodName: "increase",
+      gas: "100 Tgas",
+      deposit: "0",
+      buildArgs: () => ({}),
+    },
+    secondaryAction: null,
+    showBoardPreview: false,
+    disabledNoteHtml: () =>
+      `Increase is <code>count.mike.testnet</code>-only — change the target contract back to <code>count.mike.testnet</code> to enable, or use the console snippets below to call <code>app.contractId</code> directly.`,
+  },
+};
+
+function demoConfig() {
+  return demoConfigs[currentNetwork] || demoConfigs[DEFAULT_NETWORK];
+}
+
+function isDefaultContract() {
+  return currentContractId === defaultContractFor(currentNetwork);
+}
 
 const DOCS_BASE = "https://docs.fastnear.com";
 const CANONICAL_HOSTED_ASSET_ORIGIN = "https://js.fastnear.com";
@@ -79,41 +387,49 @@ const serviceDocs = {
 const docsLaunchLinks = [
   {
     title: "RPC",
+    family: "rpc",
     description: "Canonical JSON-RPC methods and request shapes for direct chain reads and writes.",
     url: `${DOCS_BASE}/rpc`,
   },
   {
     title: "API",
+    family: "api",
     description: "FastNear REST APIs for account ownership, holdings, and public-key discovery.",
     url: `${DOCS_BASE}/api`,
   },
   {
     title: "Transactions",
+    family: "tx",
     description: "Indexed transaction, receipt, and block-level execution history.",
     url: `${DOCS_BASE}/tx`,
   },
   {
     title: "Transfers",
+    family: "transfers",
     description: "Transfer-specific feeds when the question is about asset movement.",
     url: `${DOCS_BASE}/transfers`,
   },
   {
     title: "NEAR Data",
+    family: "neardata",
     description: "Recent block, shard, and chunk documents without stitching chain data yourself.",
     url: `${DOCS_BASE}/neardata`,
   },
   {
     title: "FastData KV",
+    family: "fastdata.kv",
     description: "Indexed contract storage and exact-key history for storage-heavy investigations.",
     url: `${DOCS_BASE}/fastdata/kv`,
   },
   {
     title: "Agents",
+    family: "agents",
     description: "Agent guidance, authentication posture, and API-family routing across FastNear docs.",
     url: `${DOCS_BASE}/agents`,
   },
   {
     title: "Auth & Access",
+    family: "auth",
     description: "API key patterns, bearer/query auth, and shared FastNear access guidance.",
     url: `${DOCS_BASE}/auth`,
   },
@@ -154,6 +470,24 @@ function textLinkClass(url, currentOrigin = getHostedAssetOrigin()) {
   return isOffOriginUrl(url, currentOrigin) ? "text-link external-link-indicator" : "text-link";
 }
 
+export function rewriteContractIdInText(text, newContractId = currentContractId) {
+  if (typeof text !== "string" || !text) return text;
+  if (!newContractId || newContractId === DEFAULT_CONTRACT_ID) return text;
+  return text.replaceAll(DEFAULT_CONTRACT_ID, newContractId);
+}
+
+function deepRewriteContractId(value, newContractId) {
+  if (!newContractId || newContractId === DEFAULT_CONTRACT_ID) return value;
+  if (typeof value === "string") return rewriteContractIdInText(value, newContractId);
+  if (Array.isArray(value)) return value.map((item) => deepRewriteContractId(item, newContractId));
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const key of Object.keys(value)) out[key] = deepRewriteContractId(value[key], newContractId);
+    return out;
+  }
+  return value;
+}
+
 export function rewriteHostedAssetUrlsInText(text, assetUrls = getHostedAssetUrls()) {
   if (typeof text !== "string" || !text) {
     return text;
@@ -177,8 +511,8 @@ export function rewriteHostedAssetUrlsInText(text, assetUrls = getHostedAssetUrl
   );
 }
 
-export function normalizeHostedCatalogForPage(generated, assetUrls = getHostedAssetUrls()) {
-  return {
+export function normalizeHostedCatalogForPage(generated, assetUrls = getHostedAssetUrls(), contractIdOverride = currentContractId) {
+  const withAssetUrls = {
     ...generated,
     catalogUrl: assetUrls.recipes,
     support: {
@@ -202,6 +536,7 @@ export function normalizeHostedCatalogForPage(generated, assetUrls = getHostedAs
       })),
     })),
   };
+  return deepRewriteContractId(withAssetUrls, contractIdOverride);
 }
 
 export function applyHostedAssetLinks(root = globalThis.document, assetUrls = getHostedAssetUrls()) {
@@ -436,6 +771,32 @@ function renderPillList(items, { related = false } = {}) {
   }).join("");
 }
 
+const CODE_ICON_COPY = `<svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg>`;
+const CODE_ICON_CHECK = `<svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg>`;
+const CODE_ICON_WRAP = `<svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg>`;
+
+function buildCodeBlock(codeId, code) {
+  return `
+    <div class="code-block">
+      <pre class="code-card-body"><code id="${codeId}">${escapeHtml(code)}</code></pre>
+      <div class="code-actions">
+        <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden>${CODE_ICON_WRAP}</button>
+        <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#${codeId}">${CODE_ICON_COPY}${CODE_ICON_CHECK}</button>
+      </div>
+    </div>`;
+}
+
+export function refreshCodeWrapButtons() {
+  document.querySelectorAll(".code-block").forEach((block) => {
+    const pre = block.querySelector(".code-card-body");
+    const btn = block.querySelector(".code-wrap-button");
+    if (!pre || !btn) return;
+    const isWrapped = pre.classList.contains("is-wrapped");
+    const canScroll = pre.scrollWidth > pre.clientWidth + 1;
+    btn.hidden = !(isWrapped || canScroll);
+  });
+}
+
 function buildQuickstartCard({ codeId, kicker, title, summary, snippet }) {
   const noteMarkup = buildSnippetNotes(snippet);
 
@@ -449,9 +810,8 @@ function buildQuickstartCard({ codeId, kicker, title, summary, snippet }) {
           <div class="code-card-meta">${escapeHtml(environmentLabel(snippet))}</div>
           ${noteMarkup ? `<div class="code-card-notes">${noteMarkup}</div>` : ""}
         </div>
-        <button class="copy-button" data-clipboard-target="#${codeId}">Copy</button>
       </div>
-      <pre class="code-card-body"><code id="${codeId}">${escapeHtml(snippet.code)}</code></pre>
+      ${buildCodeBlock(codeId, snippet.code)}
     </article>
   `;
 }
@@ -492,6 +852,10 @@ function buildQuickstartSupportCard(support) {
   `;
 }
 
+function familyBadgeClass(id) {
+  return `family-badge family-badge--${String(id).replace(/\./g, "-")}`;
+}
+
 function buildFamilyCard(family) {
   const docs = getServiceMeta(family.id);
   const authStyle = family.authStyle === "query" ? "Query auth" : family.authStyle === "bearer" ? "Bearer auth" : family.authStyle;
@@ -500,7 +864,7 @@ function buildFamilyCard(family) {
     <article class="card surface-card">
       <div class="surface-head">
         <div>
-          <div class="card-kicker">${escapeHtml(family.id)}</div>
+          <span class="${familyBadgeClass(family.id)}">${escapeHtml(family.id)}</span>
           <h3 class="card-title">${escapeHtml(docs.title)}</h3>
         </div>
         <a class="button-secondary button-small" href="${escapeHtml(docs.url)}" rel="noopener noreferrer" target="_blank">${escapeHtml(docs.cta)}</a>
@@ -521,10 +885,10 @@ function buildFamilyCard(family) {
 }
 
 function buildDocsCard(entry) {
+  const badgeClass = entry.family ? familyBadgeClass(entry.family) : "family-badge";
   return `
     <a class="card docs-card" href="${escapeHtml(entry.url)}" rel="noopener noreferrer" target="_blank">
-      <div class="card-kicker">docs.fastnear.com</div>
-      <h3 class="card-title">${escapeHtml(entry.title)}</h3>
+      <span class="${badgeClass}">${escapeHtml(entry.title)}</span>
       <p class="card-summary">${escapeHtml(entry.description)}</p>
       <span class="text-link docs-card-link">Read docs</span>
     </a>
@@ -543,9 +907,8 @@ function buildRecipeSnippetCard(recipe, snippet) {
           <div class="code-card-meta">${escapeHtml(environmentLabel(snippet))}</div>
           ${noteMarkup ? `<div class="code-card-notes">${noteMarkup}</div>` : ""}
         </div>
-        <button class="copy-button" data-clipboard-target="#${codeId}">Copy</button>
       </div>
-      <pre class="code-card-body"><code id="${codeId}">${escapeHtml(snippet.code)}</code></pre>
+      ${buildCodeBlock(codeId, snippet.code)}
     </article>
   `;
 }
@@ -639,10 +1002,10 @@ function buildRecipeCard(recipe) {
         </div>
         <div class="recipe-actions">
           <div class="meta-row">
-            <span class="badge-pill badge-pill-strong">${escapeHtml(serviceMeta.title)}</span>
-            <span class="badge-pill badge-pill-strong">${escapeHtml(authLabel(recipe.auth))}</span>
+            <span class="${familyBadgeClass(recipe.service)}">${escapeHtml(serviceMeta.title)}</span>
+            <span class="family-badge family-badge--auth-tag">${escapeHtml(authLabel(recipe.auth))}</span>
           </div>
-          <a class="button-secondary button-small" href="${escapeHtml(serviceMeta.url)}" rel="noopener noreferrer" target="_blank">${escapeHtml(serviceMeta.cta)}</a>
+          <a class="text-link external-link-indicator" href="${escapeHtml(serviceMeta.url)}" rel="noopener noreferrer" target="_blank">${escapeHtml(serviceMeta.cta)}</a>
         </div>
       </div>
 
@@ -697,6 +1060,59 @@ function buildFallbackCard(title, body) {
   `;
 }
 
+let cachedRawCatalog = null;
+
+function renderNormalizedCatalog(generated) {
+  const quickstart = document.getElementById("hero-quickstart");
+  const surfaces = document.getElementById("surface-grid");
+  const guidance = document.getElementById("agent-guidance");
+  const container = document.getElementById("agent-recipes");
+
+  if (!quickstart || !surfaces || !guidance || !container) return;
+
+  recipeTitleLookup = new Map(
+    (generated.recipes || []).map((recipe) => [recipe.id, recipe.title])
+  );
+
+  const starterRecipe = generated.recipes.find((recipe) => recipe.id === "view-contract");
+  const terminalSnippet = starterRecipe ? getSnippet(starterRecipe, "terminal") : null;
+  const curlSnippet = starterRecipe ? getSnippet(starterRecipe, "curl-jq") : null;
+
+  quickstart.innerHTML = [
+    terminalSnippet
+      ? buildQuickstartCard({
+          codeId: "hero-terminal-snippet",
+          kicker: "agents.js",
+          title: "Run FastNear JS in one terminal command",
+          summary: "Use the hosted agent wrapper, work with normal JavaScript objects, and keep the next step in JS.",
+          snippet: terminalSnippet,
+        })
+      : buildFallbackCard("Terminal starter unavailable", "The generated catalog did not include the expected terminal starter snippet."),
+    curlSnippet
+      ? buildQuickstartCard({
+          codeId: "hero-curl-snippet",
+          kicker: "curl + jq",
+          title: "Use raw HTTP with curl + jq",
+          summary: "Stay close to the wire format when you want shell-native filtering, quick surveys, or a direct request you can adapt.",
+          snippet: curlSnippet,
+        })
+      : buildFallbackCard("curl starter unavailable", "The generated catalog did not include the expected curl + jq starter snippet."),
+    buildQuickstartSupportCard(generated.support),
+  ].join("");
+
+  surfaces.innerHTML = (generated.families || []).map(buildFamilyCard).join("");
+  guidance.innerHTML = buildCatalogNote(generated);
+  container.innerHTML = getLandingRecipes(generated.recipes).map(buildRecipeCard).join("");
+
+  refreshCodeWrapButtons();
+}
+
+export function rerenderRecipesForContract() {
+  if (!cachedRawCatalog) return;
+  const assetUrls = getHostedAssetUrls();
+  renderNormalizedCatalog(normalizeHostedCatalogForPage(cachedRawCatalog, assetUrls, currentContractId));
+}
+
 export async function renderAgentRecipes() {
   const quickstart = document.getElementById("hero-quickstart");
   const surfaces = document.getElementById("surface-grid");
@@ -719,40 +1135,8 @@ export async function renderAgentRecipes() {
       throw new Error(`Failed to load generated recipes: ${response.status} ${response.statusText}`);
     }
 
-    const generated = normalizeHostedCatalogForPage(await response.json(), assetUrls);
-    recipeTitleLookup = new Map(
-      (generated.recipes || []).map((recipe) => [recipe.id, recipe.title])
-    );
-
-    const starterRecipe = generated.recipes.find((recipe) => recipe.id === "view-contract");
-    const terminalSnippet = starterRecipe ? getSnippet(starterRecipe, "terminal") : null;
-    const curlSnippet = starterRecipe ? getSnippet(starterRecipe, "curl-jq") : null;
-
-    quickstart.innerHTML = [
-      terminalSnippet
-        ? buildQuickstartCard({
-            codeId: "hero-terminal-snippet",
-            kicker: "agents.js",
-            title: "Run FastNear JS in one terminal command",
-            summary: "Use the hosted agent wrapper, work with normal JavaScript objects, and keep the next step in JS.",
-            snippet: terminalSnippet,
-          })
-        : buildFallbackCard("Terminal starter unavailable", "The generated catalog did not include the expected terminal starter snippet."),
-      curlSnippet
-        ? buildQuickstartCard({
-            codeId: "hero-curl-snippet",
-            kicker: "curl + jq",
-            title: "Use raw HTTP with curl + jq",
-            summary: "Stay close to the wire format when you want shell-native filtering, quick surveys, or a direct request you can adapt.",
-            snippet: curlSnippet,
-          })
-        : buildFallbackCard("curl starter unavailable", "The generated catalog did not include the expected curl + jq starter snippet."),
-      buildQuickstartSupportCard(generated.support),
-    ].join("");
-
-    surfaces.innerHTML = (generated.families || []).map(buildFamilyCard).join("");
-    guidance.innerHTML = buildCatalogNote(generated);
-    container.innerHTML = getLandingRecipes(generated.recipes).map(buildRecipeCard).join("");
+    cachedRawCatalog = await response.json();
+    renderNormalizedCatalog(normalizeHostedCatalogForPage(cachedRawCatalog, assetUrls, currentContractId));
   } catch (error) {
     console.error("Could not render agent recipes:", error);
 
@@ -773,15 +1157,27 @@ export async function renderAgentRecipes() {
 }
 
 export function wireUpAppEarly(configOpts) {
-  const defaultConfig = { networkId: defaultNetwork };
+  currentNetwork = resolveInitialNetwork();
+  currentContractId = resolveInitialContractId(currentNetwork);
+  scopedContractId = resolveInitialScopedContractId(currentNetwork);
+
+  globalThis.app = {
+    get network() { return currentNetwork; },
+    get contractId() { return currentContractId; },
+    get scopedContractId() { return scopedContractId; },
+    setContract(next) { return setContractId(next); },
+    setNetwork(next) { return setNetwork(next); },
+  };
+
+  cleanupLegacyPageStorage();
+
+  const defaultConfig = { networkId: currentNetwork };
   const updatedConfig = { ...defaultConfig, ...configOpts };
   near.config(updatedConfig);
 
   restoreReady = nearWallet.restore(walletOptions)
     .then((result) => {
-      if (result) {
-        console.log("Restored wallet session:", result.accountId);
-      }
+      if (result) console.log("Restored wallet session:", result.accountId);
     })
     .catch((err) => {
       console.warn("Wallet restore failed:", err);
@@ -793,9 +1189,14 @@ export function wireUpAppLate() {
   setupThemeToggle();
   setupScrollHeader();
 
-  function closeAuthMenus() {
-    document.querySelectorAll("[data-auth-container].open").forEach((container) => {
-      container.classList.remove("open");
+  function closeHeaderMenus() {
+    document
+      .querySelectorAll("[data-auth-container].open, [data-config-container].open")
+      .forEach((container) => {
+        container.classList.remove("open");
+      });
+    document.querySelectorAll("[data-config-toggle]").forEach((btn) => {
+      btn.setAttribute("aria-expanded", "false");
     });
   }
 
@@ -809,9 +1210,11 @@ export function wireUpAppLate() {
       if (signOutButton) {
         event.preventDefault();
         event.stopPropagation();
-        closeAuthMenus();
-        await nearWallet.disconnect();
-        location.reload();
+        closeHeaderMenus();
+        // Scope to the current page network so a parallel session on the
+        // other network is preserved. The library's onDisconnect listener
+        // (registered in wireUpAppLate) drives the re-render — no reload.
+        await nearWallet.disconnect({ network: currentNetwork });
         return;
       }
 
@@ -819,7 +1222,9 @@ export function wireUpAppLate() {
       if (signInButton) {
         event.preventDefault();
         event.stopPropagation();
+        setScopedContractId(currentContractId);
         await nearWallet.connect(walletOptions);
+        updateUI();
         return;
       }
 
@@ -827,7 +1232,34 @@ export function wireUpAppLate() {
       if (recipeConnectButton) {
         event.preventDefault();
         event.stopPropagation();
+        setScopedContractId(currentContractId);
         await nearWallet.connect(walletOptions);
+        return;
+      }
+
+      const networkSwitch = event.target.closest("[data-network-switch]");
+      if (networkSwitch) {
+        event.preventDefault();
+        event.stopPropagation();
+        const next = networkSwitch.getAttribute("data-network-switch");
+        if (next && next !== currentNetwork) {
+          setScopedContractId(null);
+          setNetwork(next);
+        }
+        return;
+      }
+
+      const configToggle = event.target.closest("[data-config-toggle]");
+      if (configToggle) {
+        event.preventDefault();
+        event.stopPropagation();
+        const container = configToggle.closest("[data-config-container]");
+        const wasOpen = container?.classList.contains("open");
+        closeHeaderMenus();
+        if (container && !wasOpen) {
+          container.classList.add("open");
+          configToggle.setAttribute("aria-expanded", "true");
+        }
         return;
       }
 
@@ -837,16 +1269,105 @@ export function wireUpAppLate() {
         event.stopPropagation();
         const container = authToggle.closest("[data-auth-container]");
         const isOpen = container?.classList.contains("open");
-        closeAuthMenus();
+        closeHeaderMenus();
         if (container && !isOpen) {
           container.classList.add("open");
         }
         return;
       }
 
-      if (!event.target.closest("[data-auth-container]")) {
-        closeAuthMenus();
+      if (!event.target.closest("[data-auth-container], [data-config-container]")) {
+        closeHeaderMenus();
       }
+    });
+
+    const showContractHint = (input, message) => {
+      if (!(input instanceof HTMLInputElement)) return;
+      input.setAttribute("aria-invalid", "true");
+      const where = input.getAttribute("data-contract-input") || "top";
+      const hint = document.querySelector(`[data-contract-input-hint="${where}"]`);
+      if (hint) {
+        hint.textContent = message;
+        hint.hidden = false;
+      }
+    };
+
+    const clearContractHint = (input) => {
+      if (!(input instanceof HTMLInputElement)) return;
+      input.removeAttribute("aria-invalid");
+      const where = input.getAttribute("data-contract-input") || "top";
+      const hint = document.querySelector(`[data-contract-input-hint="${where}"]`);
+      if (hint) {
+        hint.textContent = "";
+        hint.hidden = true;
+      }
+    };
+
+    const commitContractInput = (input, { revertOnInvalid }) => {
+      if (!(input instanceof HTMLInputElement)) return false;
+      const raw = (input.value || "").trim();
+      if (!raw) {
+        if (revertOnInvalid) input.value = currentContractId;
+        clearContractHint(input);
+        return false;
+      }
+      if (!isValidContractId(raw)) {
+        if (revertOnInvalid) {
+          input.value = currentContractId;
+          clearContractHint(input);
+        } else {
+          showContractHint(input, "Not a valid NEAR account id");
+        }
+        return false;
+      }
+      clearContractHint(input);
+      if (raw !== currentContractId) {
+        setContractId(raw);
+      } else {
+        input.value = raw;
+      }
+      return true;
+    };
+
+    document.addEventListener("input", (event) => {
+      const input = event.target instanceof HTMLInputElement && event.target.hasAttribute("data-contract-input")
+        ? event.target
+        : null;
+      if (input) clearContractHint(input);
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      const openMenu = document.querySelector("[data-auth-container].open, [data-config-container].open");
+      if (!openMenu) return;
+      closeHeaderMenus();
+      const trigger = openMenu.querySelector("[data-config-toggle], [data-auth-toggle]");
+      if (trigger instanceof HTMLElement) trigger.focus();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      const input = event.target instanceof HTMLInputElement && event.target.hasAttribute("data-contract-input")
+        ? event.target
+        : null;
+      if (!input) return;
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commitContractInput(input, { revertOnInvalid: false });
+        input.blur();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        input.value = currentContractId;
+        clearContractHint(input);
+        input.blur();
+      }
+    });
+
+    document.addEventListener("focusout", (event) => {
+      const input = event.target instanceof HTMLInputElement && event.target.hasAttribute("data-contract-input")
+        ? event.target
+        : null;
+      if (!input) return;
+      commitContractInput(input, { revertOnInvalid: true });
     });
 
     document.body.dataset.shellInteractionsReady = "true";
@@ -988,6 +1509,67 @@ export function wireUpAppLate() {
     };
   }
 
+  function renderContractSlots() {
+    const slots = document.querySelectorAll("[data-contract-slot]");
+    if (!slots.length) return;
+    slots.forEach((slot) => {
+      const where = slot.getAttribute("data-contract-slot") || "top";
+      slot.innerHTML = `
+        <label class="contract-input-label" for="contract-input-${where}">Target contract</label>
+        <input
+          id="contract-input-${where}"
+          class="contract-input"
+          type="text"
+          value="${escapeHtml(currentContractId)}"
+          aria-label="Target NEAR contract id"
+          data-contract-input="${where}"
+          spellcheck="false"
+          autocapitalize="off"
+          autocorrect="off"
+          autocomplete="off"
+          inputmode="url"
+          size="18"
+        />
+        <span class="contract-input-hint" data-contract-input-hint="${where}" hidden></span>
+      `;
+    });
+  }
+
+  function renderNetworkSlots() {
+    const slots = document.querySelectorAll("[data-network-slot]");
+    if (!slots.length) return;
+    slots.forEach((slot) => {
+      slot.innerHTML = `
+        <span class="network-toggle-label">Network</span>
+        <div class="network-toggle" role="group" aria-label="Network">
+          ${SUPPORTED_NETWORKS.map((network) => {
+            const isActive = network === currentNetwork;
+            const label = network.charAt(0).toUpperCase() + network.slice(1);
+            return `<button
+              type="button"
+              class="network-option${isActive ? " is-active" : ""}"
+              data-network-switch="${network}"
+              aria-pressed="${isActive ? "true" : "false"}"
+            >${label}</button>`;
+          }).join("")}
+        </div>
+      `;
+    });
+  }
+
+  function syncContractInputs(value) {
+    document.querySelectorAll("[data-contract-input]").forEach((input) => {
+      if (input instanceof HTMLInputElement && input.value !== value && document.activeElement !== input) {
+        input.value = value;
+      }
+      input.removeAttribute("aria-invalid");
+    });
+    document.querySelectorAll("[data-contract-input-hint]").forEach((hint) => {
+      hint.textContent = "";
+      hint.hidden = true;
+    });
+  }
+
   async function updateUI() {
     const authSlots = document.querySelectorAll("[data-auth-slot]");
 
@@ -997,13 +1579,24 @@ export function wireUpAppLate() {
       return;
     }
 
-    closeAuthMenus();
+    closeHeaderMenus();
 
-    if (nearWallet.isConnected()) {
+    if (nearWallet.isConnected({ network: currentNetwork })) {
+      const accountId = nearWallet.accountId({ network: currentNetwork });
+      const scopeMismatch = scopedContractId && scopedContractId !== currentContractId;
+      const scopeHint = scopedContractId
+        ? (scopeMismatch
+            ? `scoped to ${escapeHtml(scopedContractId)} — popup expected`
+            : `scoped to ${escapeHtml(scopedContractId)}`)
+        : "";
+      const pillTitle = scopeMismatch
+        ? `Session key is scoped to ${scopedContractId}; sending a transaction to ${currentContractId} will open a wallet popup.`
+        : "";
       authSlots.forEach((authSlot) => {
         authSlot.innerHTML = `
-        <button class="auth-pill" data-auth-toggle="true" type="button">
-          <span class="auth-account-name">${nearWallet.accountId()}</span>
+        <button class="auth-pill${scopeMismatch ? " auth-pill-mismatch" : ""}" data-auth-toggle="true" type="button"${pillTitle ? ` title="${escapeHtml(pillTitle)}"` : ""}>
+          <span class="auth-account-name">${escapeHtml(accountId)}</span>
+          ${scopeHint ? `<span class="auth-scope-hint${scopeMismatch ? " auth-scope-hint-warning" : ""}">${scopeHint}</span>` : ""}
         </button>
         <div class="auth-dropdown">
           <button class="signout-button" data-auth-signout="true" type="button">Sign Out</button>
@@ -1020,163 +1613,212 @@ export function wireUpAppLate() {
       });
     }
 
-    const totalSupplyElement = document.getElementById("total-supply");
-    const yourBalanceElement = document.getElementById("your-balance");
-    const board = document.getElementById("near-el-board");
-    const boardNote = document.getElementById("near-el-board-note");
+    const config = demoConfig();
+    const atDefault = isDefaultContract();
+    const accountId = nearWallet.accountId({ network: currentNetwork });
+    const isConnected = nearWallet.isConnected({ network: currentNetwork });
+    const demoMode = !isConnected ? "signin" : atDefault ? "interactive" : "custom";
 
-    const [supplyResult, accountResult, boardResult] = await Promise.allSettled([
-      near.view({ contractId, methodName: "ft_total_supply", args: {} }),
-      nearWallet.accountId()
-        ? near.view({ contractId, methodName: "get_account", args: { account_id: nearWallet.accountId() } })
-        : Promise.resolve(null),
-      fetchBerryFastPreviewRegion(),
+    document.body.classList.toggle("is-signed-in", isConnected);
+    const actionsCard = document.querySelector('[data-demo-card="actions"]');
+    if (actionsCard) actionsCard.setAttribute("data-demo-mode", demoMode);
+
+    if (demoMode === "custom") {
+      const acctEl = document.getElementById("demo-custom-account");
+      const contractEl = document.getElementById("demo-custom-contract");
+      if (acctEl) acctEl.textContent = accountId ?? "—";
+      if (contractEl) contractEl.textContent = currentContractId;
+    }
+
+    const sectionTitleEl = document.querySelector("[data-demo-section-title]");
+    if (sectionTitleEl) sectionTitleEl.textContent = config.sectionTitle;
+    const sectionSummaryEl = document.querySelector("[data-demo-section-summary]");
+    if (sectionSummaryEl) sectionSummaryEl.innerHTML = config.sectionSummaryHtml;
+    const previewTitleEl = document.querySelector("[data-demo-preview-title]");
+    if (previewTitleEl) previewTitleEl.textContent = config.previewTitle;
+
+    const titleEl = document.querySelector("[data-demo-title]");
+    if (titleEl) titleEl.textContent = config.cardTitle;
+    const demoNoteEl = document.querySelector("[data-demo-note]");
+    if (demoNoteEl) demoNoteEl.textContent = config.cardNote;
+    const signinTitleEl = document.querySelector("[data-demo-signin-title]");
+    if (signinTitleEl) signinTitleEl.textContent = config.signinTitle;
+    const signinNoteEl = document.querySelector("[data-demo-signin-note]");
+    if (signinNoteEl) signinNoteEl.innerHTML = config.signinNoteHtml;
+
+    const primaryLabelEl = document.querySelector("[data-metric-label='primary']");
+    if (primaryLabelEl) primaryLabelEl.textContent = config.primaryMetric.label;
+    const secondaryLabelEl = document.querySelector("[data-metric-label='secondary']");
+    const secondaryMetricCard = document.querySelector("[data-metric-card='secondary']");
+    if (secondaryMetricCard) secondaryMetricCard.hidden = !config.secondaryMetric;
+    if (secondaryLabelEl && config.secondaryMetric) secondaryLabelEl.textContent = config.secondaryMetric.label;
+
+    const primaryBtn = document.querySelector("[data-demo-primary-action]");
+    if (primaryBtn && primaryBtn.dataset.sending !== "true") primaryBtn.textContent = config.primaryAction.label;
+    const secondaryBtn = document.querySelector("[data-demo-secondary-action]");
+    if (secondaryBtn) {
+      secondaryBtn.hidden = !config.secondaryAction;
+      if (config.secondaryAction && secondaryBtn.dataset.sending !== "true") {
+        secondaryBtn.textContent = config.secondaryAction.label;
+      }
+    }
+
+    const previewCard = document.querySelector("[data-demo-card='preview']");
+    if (previewCard) previewCard.hidden = !config.showBoardPreview || !atDefault;
+
+    const wantSecondaryMetric =
+      config.secondaryMetric && atDefault && (!config.secondaryMetric.requiresAccount || !!accountId);
+
+    const [primaryResult, secondaryResult, boardResult] = await Promise.allSettled([
+      atDefault ? config.primaryMetric.fetch() : Promise.resolve(null),
+      wantSecondaryMetric ? config.secondaryMetric.fetch(accountId) : Promise.resolve(null),
+      config.showBoardPreview ? fetchBerryFastPreviewRegion() : Promise.resolve(null),
     ]);
 
-    if (totalSupplyElement) {
-      if (supplyResult.status === "fulfilled" && supplyResult.value) {
-        totalSupplyElement.textContent = `${(parseFloat(supplyResult.value) / 1e18).toFixed(4)} 🥑`;
+    const primaryValueEl = document.getElementById("total-supply");
+    if (primaryValueEl) {
+      if (!atDefault) {
+        primaryValueEl.textContent = "—";
+      } else if (primaryResult.status === "fulfilled") {
+        primaryValueEl.textContent = config.primaryMetric.format(primaryResult.value);
       } else {
-        totalSupplyElement.textContent = "-";
-        if (supplyResult.status === "rejected") {
-          console.error("Failed to fetch total supply:", supplyResult.reason);
+        primaryValueEl.textContent = "—";
+        console.error(`Failed to fetch ${config.primaryMetric.label.toLowerCase()}:`, primaryResult.reason);
+      }
+    }
+
+    const secondaryValueEl = document.getElementById("your-balance");
+    if (secondaryValueEl) {
+      if (!config.secondaryMetric) {
+        secondaryValueEl.textContent = "—";
+      } else if (!atDefault) {
+        secondaryValueEl.textContent = "—";
+      } else if (secondaryResult.status === "fulfilled") {
+        secondaryValueEl.textContent = config.secondaryMetric.format(secondaryResult.value);
+      } else {
+        secondaryValueEl.textContent = "—";
+        console.error(`Failed to fetch ${config.secondaryMetric.label.toLowerCase()}:`, secondaryResult.reason);
+      }
+    }
+
+    if (config.showBoardPreview) {
+      const board = document.getElementById("near-el-board");
+      const boardNote = document.getElementById("near-el-board-note");
+      if (board instanceof HTMLCanvasElement) {
+        if (boardResult.status === "fulfilled" && boardResult.value) {
+          renderBerryFastBoardPreview(board, boardResult.value.image);
+          if (boardNote) {
+            boardNote.innerHTML = `Live crop from <a class="text-link external-link-indicator" href="https://berry.fast" rel="noopener noreferrer" target="_blank">berry.fast</a> region <code>${berryFastPreviewRegion.rx},${berryFastPreviewRegion.ry}</code>, tightened around the three-face cluster.`;
+          }
+        } else {
+          if (boardResult.status === "rejected") {
+            console.error("Failed to fetch berry.fast board preview:", boardResult.reason);
+          }
+          const context = board.getContext("2d");
+          if (context) {
+            context.clearRect(0, 0, board.width, board.height);
+            context.fillStyle = "#000";
+            context.fillRect(0, 0, board.width, board.height);
+          }
+          if (boardNote) {
+            boardNote.textContent = "Could not load the live berry.fast board preview.";
+          }
         }
       }
     }
 
-    if (yourBalanceElement) {
-      const berryAccount = accountResult.status === "fulfilled" ? accountResult.value : null;
-      if (accountResult.status === "rejected") {
-        console.error("Failed to fetch account:", accountResult.reason);
-      }
-      yourBalanceElement.textContent =
-        berryAccount && !isNaN(berryAccount.avocado_balance)
-          ? `${(parseFloat(berryAccount.avocado_balance) / 1e18).toFixed(4)} 🥑`
-          : DefaultBalance;
-    }
-
-    if (board instanceof HTMLCanvasElement) {
-      if (boardResult.status === "fulfilled") {
-        renderBerryFastBoardPreview(board, boardResult.value.image);
-        if (boardNote) {
-          boardNote.innerHTML = `Live crop from <a class="text-link external-link-indicator" href="https://berry.fast" rel="noopener noreferrer" target="_blank">berry.fast</a> region <code>${berryFastPreviewRegion.rx},${berryFastPreviewRegion.ry}</code>, tightened around the three-face cluster.`;
-        }
-      } else {
-        console.error("Failed to fetch berry.fast board preview:", boardResult.reason);
-        const context = board.getContext("2d");
-        if (context) {
-          context.clearRect(0, 0, board.width, board.height);
-          context.fillStyle = "#000";
-          context.fillRect(0, 0, board.width, board.height);
-        }
-        if (boardNote) {
-          boardNote.textContent = "Could not load the live berry.fast board preview.";
-        }
-      }
+    const demoNoteBanner = document.getElementById("demo-actions-note");
+    [primaryBtn, secondaryBtn].forEach((btn) => {
+      if (!(btn instanceof HTMLButtonElement)) return;
+      if (btn.dataset.sending === "true") return;
+      btn.disabled = !atDefault;
+      btn.setAttribute("aria-disabled", String(!atDefault));
+    });
+    if (demoNoteBanner) {
+      demoNoteBanner.innerHTML = config.disabledNoteHtml();
+      demoNoteBanner.hidden = atDefault;
     }
   }
 
   function setBtnSending(btn, sending) {
     if (sending) {
       btn._savedHTML = btn.innerHTML;
+      btn.dataset.sending = "true";
       btn.disabled = true;
       btn.innerHTML = 'Sending…<span class="btn-hint">check the dev console for results</span>';
     } else {
+      delete btn.dataset.sending;
       btn.disabled = false;
       btn.innerHTML = btn._savedHTML;
     }
   }
 
-  function setupEventHandlers() {
-    const buyBtn = document.getElementById("buy-tokens");
-    buyBtn?.addEventListener("click", async () => {
-      if (!nearWallet.isConnected()) {
-        console.warn("Not signed in");
-        return;
-      }
-      setBtnSending(buyBtn, true);
-      try {
-        const result = await nearWallet.sendTransaction({
-          signerId: nearWallet.accountId(),
-          receiverId: contractId,
-          actions: [
-            {
-              type: "FunctionCall",
-              params: {
-                methodName: "buy_tokens",
-                gas: cu("100 Tgas"),
-                deposit: cu("0.01 NEAR"),
-                args: {},
-              },
+  async function sendDemoTx(actionSpec, btn) {
+    if (!nearWallet.isConnected({ network: currentNetwork })) {
+      console.warn("Not signed in");
+      return;
+    }
+    if (!isDefaultContract()) {
+      console.warn(`${actionSpec.methodName} is ${defaultContractFor(currentNetwork)}-only; current contract is ${currentContractId}`);
+      return;
+    }
+    setBtnSending(btn, true);
+    try {
+      const deposit = actionSpec.deposit === "0" ? "0" : cu(actionSpec.deposit);
+      const result = await nearWallet.sendTransaction({
+        network: currentNetwork,
+        signerId: nearWallet.accountId({ network: currentNetwork }),
+        receiverId: currentContractId,
+        actions: [
+          {
+            type: "FunctionCall",
+            params: {
+              methodName: actionSpec.methodName,
+              gas: cu(actionSpec.gas),
+              deposit,
+              args: actionSpec.buildArgs(),
             },
-          ],
-        });
-        console.log("buy_tokens result:", result);
-        updateUI();
-      } catch (err) {
-        if (/reject|cancel/i.test(err.message)) {
-          console.log("buy_tokens cancelled by user");
-        } else {
-          console.error("Failed to buy tokens:", err);
-        }
-      } finally {
-        setBtnSending(buyBtn, false);
+          },
+        ],
+      });
+      console.log(`${actionSpec.methodName} result:`, result);
+      updateUI();
+    } catch (err) {
+      if (/reject|cancel/i.test(err.message)) {
+        console.log(`${actionSpec.methodName} cancelled by user`);
+      } else {
+        console.error(`Failed to ${actionSpec.methodName}:`, err);
       }
+    } finally {
+      setBtnSending(btn, false);
+    }
+  }
+
+  function setupEventHandlers() {
+    const primaryBtn = document.querySelector("[data-demo-primary-action]");
+    primaryBtn?.addEventListener("click", () => {
+      const action = demoConfig().primaryAction;
+      if (action) sendDemoTx(action, primaryBtn);
     });
 
-    const drawBtn = document.getElementById("draw-pixel");
-    drawBtn?.addEventListener("click", async () => {
-      if (!nearWallet.isConnected()) {
-        console.warn("Not signed in");
-        return;
-      }
-      setBtnSending(drawBtn, true);
-      try {
-        const randVal = Math.floor(Math.random() * BoardHeight * BoardHeight);
-        const result = await nearWallet.sendTransaction({
-          signerId: nearWallet.accountId(),
-          receiverId: contractId,
-          actions: [
-            {
-              type: "FunctionCall",
-              params: {
-                methodName: "draw",
-                gas: cu("100 Tgas"),
-                deposit: "0",
-                args: {
-                  pixels: [
-                    {
-                      x: randVal % BoardHeight,
-                      y: Math.floor(randVal / BoardHeight) % BoardHeight,
-                      color: 65280,
-                    },
-                  ],
-                },
-              },
-            },
-          ],
-        });
-        console.log("draw result:", result);
-        updateUI();
-      } catch (err) {
-        if (/reject|cancel/i.test(err.message)) {
-          console.log("draw cancelled by user");
-        } else {
-          console.error("Failed to draw pixel:", err);
-        }
-      } finally {
-        setBtnSending(drawBtn, false);
-      }
+    const secondaryBtn = document.querySelector("[data-demo-secondary-action]");
+    secondaryBtn?.addEventListener("click", () => {
+      const action = demoConfig().secondaryAction;
+      if (action) sendDemoTx(action, secondaryBtn);
     });
   }
 
   nearWallet.onConnect((result) => {
     console.log("Wallet connected:", result.accountId);
+    if (!scopedContractId) {
+      setScopedContractId(currentContractId);
+    }
     updateUI();
   });
 
   nearWallet.onDisconnect(() => {
     console.log("Wallet disconnected");
+    setScopedContractId(null);
     updateUI();
   });
 
@@ -1184,6 +1826,14 @@ export function wireUpAppLate() {
     if (accountId) {
       console.log("fastnear: account update:", accountId);
     }
+    updateUI();
+  });
+
+  renderNetworkSlots();
+  renderContractSlots();
+  onContractChange(() => {
+    syncContractInputs(currentContractId);
+    rerenderRecipesForContract();
     updateUI();
   });
 

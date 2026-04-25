@@ -1,3 +1,5 @@
 .DS_Store
 .tmp/
 mike/
+node_modules/
+scripts/visual-diff/out/

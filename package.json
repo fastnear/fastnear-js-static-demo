@@ -1,0 +1,17 @@
+{
+  "name": "js-example-berryclub",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Static HTML demo of @fastnear/api and @fastnear/wallet (Berry Club). Runtime has zero npm deps — UMD globals load from CDN. Dev deps are tooling-only (visual diff, artifact sync).",
+  "type": "module",
+  "scripts": {
+    "serve": "python3 -m http.server 8000 --directory public",
+    "visual-diff:hero": "node scripts/visual-diff/capture.mjs",
+    "visual-diff:fullpage": "node scripts/visual-diff/fullpage.mjs",
+    "visual-diff:responsive": "node scripts/visual-diff/responsive.mjs",
+    "sync-agent-artifacts": "node scripts/sync-agent-artifacts.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  }
+}
