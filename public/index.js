@@ -259,7 +259,7 @@ const demoConfigs = {
       "Connect any wallet to try <code>draw</code> or <code>buy_tokens</code> on <code>berryclub.ek.near</code> — all from the browser.",
     primaryMetric: {
       label: "Total supply",
-      fetch: () => near.view({ contractId: currentContractId, methodName: "ft_total_supply", args: {} }),
+      fetch: () => near.ft.totalSupply({ contractId: currentContractId }),
       format: (raw) => (raw ? `${(parseFloat(raw) / 1e18).toFixed(4)} 🥑` : "—"),
     },
     secondaryMetric: {
