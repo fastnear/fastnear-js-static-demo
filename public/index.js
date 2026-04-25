@@ -1765,19 +1765,18 @@ export function wireUpAppLate() {
     setBtnSending(btn, true);
     try {
       const deposit = actionSpec.deposit === "0" ? "0" : cu(actionSpec.deposit);
-      const result = await nearWallet.sendTransaction({
+      // Per-network signing through the api layer: near.recipes.functionCall
+      // reads the signer from near.state's testnet/mainnet slot (populated by
+      // the onConnect bridge above), threads `network` to the wallet provider,
+      // and the wallet picks the right session to dispatch through. One
+      // call replaces the connector-format nearWallet.sendTransaction.
+      const result = await near.recipes.functionCall({
         network: currentNetwork,
-        signerId: nearWallet.accountId({ network: currentNetwork }),
         receiverId: currentContractId,
-        actions: [
-          {
-            type: "FunctionCall",
-            methodName: actionSpec.methodName,
-            gas: cu(actionSpec.gas),
-            deposit,
-            args: actionSpec.buildArgs(),
-          },
-        ],
+        methodName: actionSpec.methodName,
+        args: actionSpec.buildArgs(),
+        gas: cu(actionSpec.gas),
+        deposit,
       });
       console.log(`${actionSpec.methodName} result:`, result);
       updateUI();
@@ -1808,14 +1807,38 @@ export function wireUpAppLate() {
 
   nearWallet.onConnect((result) => {
     console.log("Wallet connected:", result.accountId);
+    // Bridge the wallet's per-network connect into the api's per-network
+    // state map. The IIFE auto-wires `near.useWallet(window.nearWallet)`
+    // on load so the api can dispatch through the wallet provider, but it
+    // does not mirror the wallet's per-network accountId — without this
+    // bridge `near.sendTx({ network })` and `near.recipes.functionCall({ network })`
+    // would throw "Must sign in" even with an active wallet session.
+    if (result?.accountId) {
+      near.state.updateAccountState({ accountId: result.accountId }, result.network);
+      if (result.network) near.state.setActiveNetwork(result.network);
+    }
     if (!scopedContractId) {
       setScopedContractId(currentContractId);
     }
     updateUI();
   });
 
-  nearWallet.onDisconnect(() => {
+  nearWallet.onDisconnect((info) => {
     console.log("Wallet disconnected");
+    // Mirror the disconnect onto the api's per-network slot so subsequent
+    // recipe calls don't see a stale account on a network the user just
+    // signed out of. A parallel session on the other network is unaffected.
+    if (info?.network) {
+      near.state.updateAccountState(
+        {
+          accountId: null,
+          privateKey: null,
+          accessKeyContractId: null,
+          lastWalletId: null,
+        },
+        info.network,
+      );
+    }
     setScopedContractId(null);
     updateUI();
   });
