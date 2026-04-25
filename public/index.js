@@ -1772,12 +1772,10 @@ export function wireUpAppLate() {
         actions: [
           {
             type: "FunctionCall",
-            params: {
-              methodName: actionSpec.methodName,
-              gas: cu(actionSpec.gas),
-              deposit,
-              args: actionSpec.buildArgs(),
-            },
+            methodName: actionSpec.methodName,
+            gas: cu(actionSpec.gas),
+            deposit,
+            args: actionSpec.buildArgs(),
           },
         ],
       });
