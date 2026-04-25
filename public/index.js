@@ -1528,6 +1528,38 @@ export function wireUpAppLate() {
     };
   }
 
+  // After a Draw lands on chain, the berry.fast indexer takes a few seconds
+  // to ingest the block. Poll the region API until x-last-updated advances
+  // past the pre-draw timestamp (or give up after ~15s) so the user sees
+  // their pixel without manually reloading.
+  async function pollBoardUntilUpdated() {
+    const board = document.getElementById("near-el-board");
+    if (!(board instanceof HTMLCanvasElement)) return;
+    let baseline = 0;
+    try {
+      const initial = await fetchBerryFastPreviewRegion();
+      baseline = initial.lastUpdated;
+      renderBerryFastBoardPreview(board, initial.image);
+    } catch (err) {
+      console.error("Failed to read initial berry.fast preview for poll:", err);
+      return;
+    }
+    const deadline = Date.now() + 15000;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      if (!demoConfig().showBoardPreview) return;
+      try {
+        const next = await fetchBerryFastPreviewRegion();
+        if (next.lastUpdated > baseline) {
+          renderBerryFastBoardPreview(board, next.image);
+          return;
+        }
+      } catch (err) {
+        // transient indexer/network error — keep trying until the deadline
+      }
+    }
+  }
+
   function renderContractSlots() {
     const slots = document.querySelectorAll("[data-contract-slot]");
     if (!slots.length) return;
@@ -1799,6 +1831,9 @@ export function wireUpAppLate() {
       });
       console.log(`${actionSpec.methodName} result:`, result);
       updateUI();
+      if (actionSpec.contractId === BerryFastDrawContract && demoConfig().showBoardPreview) {
+        pollBoardUntilUpdated();
+      }
     } catch (err) {
       if (/reject|cancel/i.test(err.message)) {
         console.log(`${actionSpec.methodName} cancelled by user`);
