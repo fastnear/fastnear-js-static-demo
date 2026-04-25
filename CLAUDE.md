@@ -134,7 +134,7 @@ These are configured in the near-connect MNW executor (`near-wallets/src/mnw.ts`
 ## Dependencies
 
 - **`@fastnear/api`** (`^1.1.4`) — NEAR blockchain API, loaded as UMD global (`window.near`)
-- **`@fastnear/wallet`** (`^1.1.4`) — Multi-wallet connector, loaded as UMD global (`window.nearWallet`); wraps `@fastnear/near-connect` (`^0.12.1`)
+- **`@fastnear/wallet`** (`^1.1.4`) — Multi-wallet connector, loaded as UMD global (`window.nearWallet`); wraps `@fastnear/near-connect` (`^0.12.2`)
 
 Loaded via bare unpkg URLs (no pinned version), e.g. `https://unpkg.com/@fastnear/wallet/dist/umd/browser.global.js`. These resolve to `latest` on npm. To cache-bust after publishing, hard-refresh the page (`Cmd+Shift+R`) and verify the version at `https://unpkg.com/@fastnear/wallet/package.json`.
 
