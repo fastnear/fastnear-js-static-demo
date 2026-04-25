@@ -97,10 +97,31 @@ The `walletConnect` option flows: `nearWallet.connect()` → `@fastnear/wallet` 
 
 ### FunctionCall Access Keys
 
-The demo uses two FCKs in parallel:
+The demo asks the wallet for **one** FCK at sign-in, scoped to the
+contract whose action the demo most wants to be silent:
 
-1. **Sign-in FCK on `berryclub.ek.near`.** When signing in via MyNearWallet with `contractId: currentContractId` (= `berryclub.ek.near`), the MNW executor generates a key pair, stores the private key in the sandboxed iframe's localStorage, and sends the public key to MNW for an on-chain `AddKey`. (`buy_tokens` has a 0.01 NEAR deposit, so even with this FCK, Buy still requires a wallet popup — FCKs only sign zero-deposit calls. The FCK is mostly there as the standard sign-in artifact.)
-2. **Programmatic FCK on `berryfast.near`** (post-sign-in). After `nearWallet.onConnect` fires, the demo calls `nearWallet.addFunctionCallKey({ contractId: "berryfast.near", methodNames: ["draw"], network: "mainnet" })` (added in `@fastnear/wallet@1.1.4`). This generates a second key locally and sends an `AddKey` tx via MNW (one popup) so subsequent `draw` calls on `berryfast.near` sign silently. A per-account marker in `localStorage` (`fastnear-demo:berryfast-fck-added:<accountId>`) prevents repeated AddKey attempts on each sign-in. The marker is cleared on disconnect so the next sign-in re-attempts.
+- **Mainnet:** FCK on `berryfast.near` so "Draw Random Green Pixel"
+  (zero-deposit `draw`) signs silently. Buy 25 🥑 (0.01 NEAR deposit)
+  always pops the wallet regardless of FCK — FCKs only sign
+  zero-deposit calls — so an FCK on `berryclub.ek.near` would have
+  added no value.
+- **Testnet:** FCK on `count.mike.testnet` so "Increase the counter"
+  signs silently.
+
+The FCK target is determined by `signInFckContractFor(network)` in
+`public/index.js` and exposed via `walletOptions.contractId`. When
+signing in via MyNearWallet, the executor generates a key pair, stores
+the private key in the sandboxed iframe's localStorage as
+`functionCallKey`, and MNW signs an on-chain `AddKey` redirect. On
+sign-out, MNW collects every key it knows about (the legacy
+`functionCallKey` plus any `functionCallKey:<contractId>` entries) and
+bundles all DeleteKey actions into one popup-confirmed tx — see
+`@fastnear/near-connect@0.12.2`.
+
+The wallet also exports `nearWallet.addFunctionCallKey({ contractId, methodNames, ... })`
+(`@fastnear/wallet@1.1.4+`) for cases that need an additional FCK on a
+second contract after sign-in. This demo doesn't use it — one FCK is
+enough.
 
 ### RPC Endpoints
 

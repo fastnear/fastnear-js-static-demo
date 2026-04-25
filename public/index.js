@@ -235,12 +235,28 @@ const berryFastPreviewCrop = { x: 2, y: 0, width: 124, height: 46 };
 const berryFastPreviewScale = 8;
 const walletManifest = "./manifest.json";
 const walletConnect = { projectId: "4b2c7201ce4c03e0fb59895a2c251110" };
+
+// FunctionCall access key target at sign-in. On mainnet we want the FCK
+// scoped to berryfast.near so "Draw Random Green Pixel" (zero-deposit
+// draw on berryfast.near) signs silently — Buy 25 🥑 on
+// berryclub.ek.near has a 0.01 NEAR deposit and would pop the wallet
+// regardless of FCK, so a berryclub-scoped FCK adds no value. On
+// testnet the target stays count.mike.testnet (the only contract the
+// counter demo touches).
+const SIGN_IN_FCK_BY_NETWORK = {
+  mainnet: BerryFastDrawContract,
+  testnet: "count.mike.testnet",
+};
+function signInFckContractFor(network) {
+  return SIGN_IN_FCK_BY_NETWORK[network] || defaultContractFor(network);
+}
+
 const walletOptions = {
   get network() {
     return currentNetwork;
   },
   get contractId() {
-    return currentContractId;
+    return signInFckContractFor(currentNetwork);
   },
   manifest: walletManifest,
   walletConnect,
@@ -1824,39 +1840,6 @@ export function wireUpAppLate() {
       setScopedContractId(currentContractId);
     }
     updateUI();
-
-    // Best-effort: grant zero-popup signing for berryfast.near's `draw` so
-    // the mainnet "Draw Random Green Pixel" button doesn't open a wallet
-    // popup on every tx. The FCK created at sign-in is scoped to
-    // currentContractId (berryclub.ek.near for Buy 25 🥑); berryfast.near
-    // needs its own FCK. Requires @fastnear/wallet 1.1.4+ —
-    // gracefully skipped on older bundles.
-    if (
-      result?.network === "mainnet" &&
-      result?.accountId &&
-      typeof nearWallet.addFunctionCallKey === "function"
-    ) {
-      const marker = `fastnear-demo:berryfast-fck-added:${result.accountId}`;
-      if (!localStorage.getItem(marker)) {
-        // Fire-and-forget: don't block UI updates on the AddKey popup.
-        nearWallet
-          .addFunctionCallKey({
-            contractId: BerryFastDrawContract,
-            methodNames: ["draw"],
-            network: "mainnet",
-          })
-          .then(() => {
-            localStorage.setItem(marker, "1");
-            console.log(`Added ${BerryFastDrawContract} FCK for ${result.accountId} (silent draws enabled)`);
-          })
-          .catch((err) => {
-            console.warn(
-              `Failed to add ${BerryFastDrawContract} FCK (Draw will open wallet popup):`,
-              err,
-            );
-          });
-      }
-    }
   });
 
   nearWallet.onDisconnect((info) => {
@@ -1874,15 +1857,6 @@ export function wireUpAppLate() {
         },
         info.network,
       );
-    }
-    // Clear the per-account "berryfast FCK already added" markers so a
-    // subsequent sign-in re-attempts the AddKey. (MNW's signOut deletes
-    // its tracked on-chain FCK as part of the disconnect flow.)
-    for (let i = localStorage.length - 1; i >= 0; i--) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith("fastnear-demo:berryfast-fck-added:")) {
-        localStorage.removeItem(key);
-      }
     }
     setScopedContractId(null);
     updateUI();
