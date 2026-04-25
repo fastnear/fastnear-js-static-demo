@@ -20,13 +20,13 @@ Served from `public/` (not the repo root) so paths like `/recipes.json`,
 `/agents.js`, `/llms.txt` resolve the same as in production on `js.fastnear.com`
 (where `public/` is the site root).
 
-Runtime has **zero npm dependencies** — `@fastnear/*` packages load as UMD globals from `js.fastnear.com` via `<script>` tags. The only npm content in the repo is the root `package.json`, which holds **dev-only** tooling (Playwright for visual diff, maintenance scripts) plus a few `npm run …` aliases so common chores are discoverable.
+Runtime has **zero npm dependencies** — `@fastnear/*` packages load as IIFE globals from `js.fastnear.com` via `<script>` tags. The only npm content in the repo is the root `package.json`, which holds **dev-only** tooling (Playwright for visual diff, maintenance scripts) plus a few `npm run …` aliases so common chores are discoverable.
 
 ## Project Structure
 
 ```
 public/
-  index.html              # Entry point — loads UMD globals + ES module
+  index.html              # Entry point — loads IIFE globals + ES module
   index.js                # App logic: wireUpAppEarly() + wireUpAppLate()
   style.css               # Tachyons + custom dark theme
   manifest.json           # Wallet manifest — wallet list, executors, permissions
@@ -65,8 +65,8 @@ unreachable. See the README for the exact incantation.
 
 ### JS Loading Order
 
-1. `@fastnear/api` UMD from unpkg → creates `window.near`
-2. `@fastnear/wallet` UMD from unpkg → creates `window.nearWallet`
+1. `@fastnear/api` IIFE bundle from unpkg → creates `window.near`
+2. `@fastnear/wallet` IIFE bundle from unpkg → creates `window.nearWallet`
 3. `<script type="module">` imports `./index.js`, calls `wireUpAppEarly()` immediately, then `wireUpAppLate()` on DOMContentLoaded
 
 ### Key Functions (index.js)
@@ -133,10 +133,10 @@ These are configured in the near-connect MNW executor (`near-wallets/src/mnw.ts`
 
 ## Dependencies
 
-- **`@fastnear/api`** (`^1.1.4`) — NEAR blockchain API, loaded as UMD global (`window.near`)
-- **`@fastnear/wallet`** (`^1.1.4`) — Multi-wallet connector, loaded as UMD global (`window.nearWallet`); wraps `@fastnear/near-connect` (`^0.12.2`)
+- **`@fastnear/api`** (`^1.1.4`) — NEAR blockchain API, loaded as IIFE global (`window.near`)
+- **`@fastnear/wallet`** (`^1.1.4`) — Multi-wallet connector, loaded as IIFE global (`window.nearWallet`); wraps `@fastnear/near-connect` (`^0.12.2`)
 
-Loaded via bare unpkg URLs (no pinned version), e.g. `https://unpkg.com/@fastnear/wallet/dist/umd/browser.global.js`. These resolve to `latest` on npm. To cache-bust after publishing, hard-refresh the page (`Cmd+Shift+R`) and verify the version at `https://unpkg.com/@fastnear/wallet/package.json`.
+Loaded via bare unpkg URLs (no pinned version), e.g. `https://unpkg.com/@fastnear/wallet/dist/umd/browser.global.js` (the `umd` directory in the published package holds an IIFE-format bundle — directory naming is legacy, format is IIFE per `tsup.config.ts`). These resolve to `latest` on npm. To cache-bust after publishing, hard-refresh the page (`Cmd+Shift+R`) and verify the version at `https://unpkg.com/@fastnear/wallet/package.json`.
 
 ## Related Repositories
 

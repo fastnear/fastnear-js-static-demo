@@ -1,6 +1,6 @@
 /** @type { import("@fastnear/api") } */
 /* global near, nearWallet */
-/* ^ UMD globals loaded via <script> tags in index.html */
+/* ^ IIFE globals loaded via <script> tags in index.html */
 
 const SUPPORTED_NETWORKS = ["mainnet", "testnet"];
 const DEFAULT_NETWORK = "mainnet";
@@ -1635,13 +1635,11 @@ export function wireUpAppLate() {
     if (nearWallet.isConnected({ network: currentNetwork })) {
       const accountId = nearWallet.accountId({ network: currentNetwork });
       const scopeMismatch = scopedContractId && scopedContractId !== currentContractId;
-      const scopeHint = scopedContractId
-        ? (scopeMismatch
-            ? `scoped to ${escapeHtml(scopedContractId)} — popup expected`
-            : `scoped to ${escapeHtml(scopedContractId)}`)
+      const scopeHint = scopeMismatch
+        ? `popup expected on ${escapeHtml(currentContractId)}`
         : "";
       const pillTitle = scopeMismatch
-        ? `Session key is scoped to ${scopedContractId}; sending a transaction to ${currentContractId} will open a wallet popup.`
+        ? `Session key signs zero-deposit calls to ${scopedContractId}; sending a transaction to ${currentContractId} will open a wallet popup.`
         : "";
       authSlots.forEach((authSlot) => {
         authSlot.innerHTML = `

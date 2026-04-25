@@ -849,6 +849,14 @@ body.is-signed-in .hero-shell { order: 2; }
     font-weight: 600;
 }
 
+.hero-install-logo {
+    flex: 0 0 auto;
+    display: block;
+    height: 1.25rem;
+    width: auto;
+    border-radius: 0.2rem;
+}
+
 .hero-install-hint {
     flex: 1 1 auto;
     min-width: 0;
@@ -989,6 +997,14 @@ body.is-signed-in .hero-shell { order: 2; }
     vertical-align: baseline;
     transform: translateY(0.18em);
     animation: hero-prompt-blink 2s steps(1) 1 forwards;
+}
+
+/* Both blinking-cursor.svg and the JS logo are white-bg/black-fg.
+   In dark mode they read as light chips on the dark page; in light
+   mode they blend in. Invert in light mode so the cursor and JS
+   chip render as dark accents on the light page. */
+:root:not(.dark) .hero-prompt::after {
+    filter: invert(1);
 }
 
 @keyframes hero-prompt-blink {
@@ -1894,7 +1910,7 @@ body.is-signed-in .hero-shell { order: 2; }
 }
 
 .action-button {
-    width: 100%;
+    width: fit-content;
     justify-content: center;
 }
 
