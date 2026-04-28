@@ -42,6 +42,7 @@
         "signTransaction": false,
         "signAndSendTransaction": true,
         "signAndSendTransactions": true,
+        "signDelegateActions": true,
         "signInWithoutAddKey": true,
         "verifyOwner": false,
         "testnet": true
@@ -78,7 +79,6 @@
         "signInAndSignMessage": true,
         "signAndSendTransaction": true,
         "signAndSendTransactions": true,
-        "signDelegateActions": true,
         "mainnet": true,
         "testnet": true
       },

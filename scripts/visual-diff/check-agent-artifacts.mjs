@@ -40,6 +40,7 @@ const EXPECTED_RECIPE_IDS = [
   "function-call",
   "transfer",
   "sign-message",
+  "sign-delegate-actions",
   "ft-balance",
   "ft-metadata",
   "ft-inventory",

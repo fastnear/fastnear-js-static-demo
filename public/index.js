@@ -304,9 +304,26 @@ const demoConfigs = {
       deposit: "0.01 NEAR",
       buildArgs: () => ({}),
     },
+    // Mirrors the canonical sign-delegate-actions recipe verbatim — same
+    // receiverId, methodName, args, gas, deposit — so a hash produced by
+    // the on-page button matches a hash produced by copying the recipe's
+    // browser-global snippet into DevTools. The artifact is never
+    // submitted; this card is signing-only.
+    tertiaryAction: {
+      receiverId: "berryclub.ek.near",
+      actions: [
+        {
+          type: "FunctionCall",
+          methodName: "draw",
+          args: { pixels: [{ x: 10, y: 20, color: 65280 }] },
+          gas: "100 Tgas",
+          deposit: "0",
+        },
+      ],
+    },
     showBoardPreview: true,
     disabledNoteHtml: () =>
-      `Draw (writes to <code>berryfast.near</code>) and Buy (writes to <code>berryclub.ek.near</code>) only fire when the target contract above is the default <code>berryclub.ek.near</code>. Switch back to re-enable, or use the console snippets below to call <code>app.contractId</code> directly.`,
+      `Draw (writes to <code>berryfast.near</code>), Buy (writes to <code>berryclub.ek.near</code>), and Sign DelegateAction (signs <code>berryclub.ek.near</code>) only fire when the target contract above is the default <code>berryclub.ek.near</code>. Switch back to re-enable, or use the console snippets below to call <code>app.contractId</code> directly.`,
   },
   testnet: {
     sectionTitle: "A testnet counter on the same FastNear runtime.",
@@ -334,6 +351,7 @@ const demoConfigs = {
       buildArgs: () => ({}),
     },
     secondaryAction: null,
+    tertiaryAction: null,
     showBoardPreview: false,
     disabledNoteHtml: () =>
       `Increase is <code>count.mike.testnet</code>-only — change the target contract back to <code>count.mike.testnet</code> to enable, or use the console snippets below to call <code>app.contractId</code> directly.`,
@@ -346,6 +364,34 @@ function demoConfig() {
 
 function isDefaultContract() {
   return currentContractId === defaultContractFor(currentNetwork);
+}
+
+// Resolves the local manifest's signDelegateActions claim for the wallet
+// the user is connected with. The connector throws "Connected wallet does
+// not support signDelegateActions" if called against a wallet that hasn't
+// implemented it, but @fastnear/wallet exposes no public getFeatures() —
+// so we manifest-lookup to gate the button before-the-fact and let the
+// throw remain a backstop for stale manifest claims.
+let _walletManifestPromise = null;
+function loadWalletManifest() {
+  if (_walletManifestPromise) return _walletManifestPromise;
+  _walletManifestPromise = fetch(walletManifest)
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
+  return _walletManifestPromise;
+}
+
+async function walletSupportsDelegate(network) {
+  // Runtime-export check first: a fast-moving unpkg bundle can lag a few
+  // hours behind the monorepo's connector.ts. If the IIFE we loaded
+  // doesn't expose signDelegateActions yet, hide the button entirely
+  // rather than letting a click throw "is not a function".
+  if (typeof nearWallet.signDelegateActions !== "function") return false;
+  const name = nearWallet.walletName?.({ network });
+  if (!name) return false;
+  const manifest = await loadWalletManifest();
+  const entry = manifest?.wallets?.find((w) => w.name === name || w.id === name);
+  return entry?.features?.signDelegateActions === true;
 }
 
 const DOCS_BASE = "https://docs.fastnear.com";
@@ -1186,6 +1232,27 @@ export function wireUpAppEarly(configOpts) {
     get scopedContractId() { return scopedContractId; },
     setContract(next) { return setContractId(next); },
     setNetwork(next) { return setNetwork(next); },
+    // Console parity with the on-page Sign DelegateAction button — same
+    // payload as the sign-delegate-actions recipe so a hash from this
+    // helper matches one from the button.
+    async signDelegateExample() {
+      const cu = near.utils.convertUnit;
+      const result = await nearWallet.signDelegateActions({
+        network: "mainnet",
+        delegateActions: [{
+          receiverId: "berryclub.ek.near",
+          actions: [{
+            type: "FunctionCall",
+            methodName: "draw",
+            args: { pixels: [{ x: 10, y: 20, color: 65280 }] },
+            gas: cu("100 Tgas"),
+            deposit: "0",
+          }],
+        }],
+      });
+      console.log("signedDelegateActions:", result.signedDelegateActions);
+      return result;
+    },
   };
 
   cleanupLegacyPageStorage();
@@ -1711,6 +1778,15 @@ export function wireUpAppLate() {
         secondaryBtn.textContent = config.secondaryAction.label;
       }
     }
+    const tertiaryBtn = document.querySelector("[data-demo-tertiary-action]");
+    const tertiaryResultPanel = document.getElementById("demo-delegate-result");
+    if (tertiaryBtn) {
+      const supports = config.tertiaryAction && isConnected
+        ? await walletSupportsDelegate(currentNetwork)
+        : false;
+      tertiaryBtn.hidden = !supports;
+      if (!supports && tertiaryResultPanel) tertiaryResultPanel.hidden = true;
+    }
 
     const previewCard = document.querySelector("[data-demo-card='preview']");
     if (previewCard) previewCard.hidden = !config.showBoardPreview || !atDefault;
@@ -1777,7 +1853,7 @@ export function wireUpAppLate() {
     }
 
     const demoNoteBanner = document.getElementById("demo-actions-note");
-    [primaryBtn, secondaryBtn].forEach((btn) => {
+    [primaryBtn, secondaryBtn, tertiaryBtn].forEach((btn) => {
       if (!(btn instanceof HTMLButtonElement)) return;
       if (btn.dataset.sending === "true") return;
       btn.disabled = !atDefault;
@@ -1843,6 +1919,56 @@ export function wireUpAppLate() {
     }
   }
 
+  async function signDelegateDemo(actionSpec, btn) {
+    if (!nearWallet.isConnected({ network: currentNetwork })) {
+      console.warn("Not signed in");
+      return;
+    }
+    if (!isDefaultContract()) {
+      console.warn(`signDelegateActions is ${defaultContractFor(currentNetwork)}-only; current contract is ${currentContractId}`);
+      return;
+    }
+    const resultPanel = document.getElementById("demo-delegate-result");
+    const hashEl = document.getElementById("demo-delegate-hash");
+    if (resultPanel) resultPanel.hidden = true;
+    setBtnSending(btn, true);
+    try {
+      // Convert "100 Tgas"-style strings on the way out — the connector
+      // hard-defaults gas only when nullish, so a literal "100 Tgas"
+      // would be sent as-is and rejected.
+      const result = await nearWallet.signDelegateActions({
+        network: currentNetwork,
+        delegateActions: [{
+          receiverId: actionSpec.receiverId,
+          actions: actionSpec.actions.map((a) => ({
+            ...a,
+            gas: typeof a.gas === "string" && /\s/.test(a.gas) ? cu(a.gas) : a.gas,
+            deposit: typeof a.deposit === "string" && a.deposit !== "0" && /[A-Za-z]/.test(a.deposit) ? cu(a.deposit) : a.deposit,
+          })),
+        }],
+      });
+      console.log("signedDelegateActions:", result.signedDelegateActions);
+      const first = result.signedDelegateActions?.[0];
+      const hash = first?.delegateHash;
+      if (hash && hashEl) {
+        const hex = Array.from(hash).map((b) => b.toString(16).padStart(2, "0")).join("");
+        hashEl.dataset.fullHex = hex;
+        hashEl.textContent = `${hex.slice(0, 8)}…${hex.slice(-8)}`;
+        if (resultPanel) resultPanel.hidden = false;
+      }
+    } catch (err) {
+      if (/does not support signDelegateActions/i.test(err.message)) {
+        console.warn("Connected wallet does not advertise signDelegateActions support:", err.message);
+      } else if (/reject|cancel/i.test(err.message)) {
+        console.log("signDelegateActions cancelled by user");
+      } else {
+        console.error("Failed to sign delegate actions:", err);
+      }
+    } finally {
+      setBtnSending(btn, false);
+    }
+  }
+
   function setupEventHandlers() {
     const primaryBtn = document.querySelector("[data-demo-primary-action]");
     primaryBtn?.addEventListener("click", () => {
@@ -1854,6 +1980,27 @@ export function wireUpAppLate() {
     secondaryBtn?.addEventListener("click", () => {
       const action = demoConfig().secondaryAction;
       if (action) sendDemoTx(action, secondaryBtn);
+    });
+
+    const tertiaryBtn = document.querySelector("[data-demo-tertiary-action]");
+    tertiaryBtn?.addEventListener("click", () => {
+      const action = demoConfig().tertiaryAction;
+      if (action) signDelegateDemo(action, tertiaryBtn);
+    });
+
+    const copyBtn = document.querySelector("[data-demo-delegate-copy]");
+    copyBtn?.addEventListener("click", async () => {
+      const hashEl = document.getElementById("demo-delegate-hash");
+      const hex = hashEl?.dataset?.fullHex;
+      if (!hex) return;
+      try {
+        await navigator.clipboard.writeText(hex);
+        const original = copyBtn.textContent;
+        copyBtn.textContent = "Copied!";
+        setTimeout(() => { copyBtn.textContent = original; }, 1500);
+      } catch (err) {
+        console.warn("Could not copy hash:", err);
+      }
     });
   }
 

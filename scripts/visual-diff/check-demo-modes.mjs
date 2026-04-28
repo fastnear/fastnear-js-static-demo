@@ -49,6 +49,9 @@ async function runMode(browser, theme, label, setup) {
       customVisible: card?.querySelector('.demo-mode-custom')?.offsetParent !== null,
       customAccount: document.getElementById('demo-custom-account')?.textContent,
       customContract: document.getElementById('demo-custom-contract')?.textContent,
+      tertiaryActionInDom: !!card?.querySelector('[data-demo-tertiary-action]'),
+      tertiaryActionHiddenByDefault: !!card?.querySelector('[data-demo-tertiary-action]')?.hidden,
+      delegateResultInDom: !!document.getElementById('demo-delegate-result'),
     };
   });
 
@@ -89,6 +92,13 @@ async function runMode(browser, theme, label, setup) {
   if (interactive.info.signinVisible) failures.push("interactive: signin block should be hidden");
   if (interactive.info.customVisible) failures.push("interactive: custom block should be hidden");
   if (interactive.info.exampleOrder !== "1") failures.push(`interactive: example order should be 1, got ${interactive.info.exampleOrder}`);
+  // Sign DelegateAction button + result panel: the harness doesn't connect
+  // a wallet, so updateUI() leaves the button hidden via walletSupportsDelegate
+  // returning false. We assert presence in the DOM and the initial-hidden
+  // state — actual click flow is exercised in the browser smoke test.
+  if (!interactive.info.tertiaryActionInDom) failures.push("interactive: [data-demo-tertiary-action] missing from DOM");
+  if (!interactive.info.tertiaryActionHiddenByDefault) failures.push("interactive: [data-demo-tertiary-action] should start hidden until wallet supports it");
+  if (!interactive.info.delegateResultInDom) failures.push("interactive: #demo-delegate-result missing from DOM");
 
   // 3. Custom — signed in on a custom contract.
   const custom = await runMode(browser, "dark", "custom", () => {

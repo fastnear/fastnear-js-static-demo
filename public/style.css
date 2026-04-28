@@ -1951,6 +1951,74 @@ body.is-signed-in .hero-shell { order: 2; }
     opacity: 0.82;
 }
 
+[data-demo-tertiary-action] {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+    padding: 0.62rem 0.95rem;
+    text-align: left;
+}
+
+[data-demo-tertiary-action] .btn-hint {
+    margin-top: 0.05rem;
+}
+
+.demo-delegate-result {
+    margin: 0.35rem 0 0;
+    padding: 0.65rem 0.85rem;
+    border-radius: 0.7rem;
+    border: 1px solid var(--success-border);
+    background: color-mix(in srgb, var(--success-bg) 55%, var(--card-background));
+    font-size: 0.84rem;
+    line-height: 1.45;
+}
+
+.demo-delegate-result[hidden] {
+    display: none;
+}
+
+.demo-delegate-result-note {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    align-items: center;
+}
+
+.demo-delegate-result-note code {
+    font-size: 0.78rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.4rem;
+    background: color-mix(in srgb, var(--card-background) 78%, var(--success-border));
+    border: 1px solid color-mix(in srgb, var(--success-border) 60%, transparent);
+}
+
+.demo-delegate-result-help {
+    margin: 0.45rem 0 0;
+    font-size: 0.78rem;
+    line-height: 1.42;
+    opacity: 0.88;
+}
+
+.demo-delegate-result-help code {
+    font-size: 0.74rem;
+}
+
+.demo-delegate-copy {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    font: inherit;
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.demo-delegate-copy:hover {
+    color: var(--primary-hover);
+}
+
 .console-section {
     padding: 1.35rem 1.4rem;
     border-radius: 1.15rem;

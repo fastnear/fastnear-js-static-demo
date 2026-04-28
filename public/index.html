@@ -509,6 +509,19 @@
             <div class="demo-actions-stack">
               <button class="button-primary action-button" id="draw-pixel" data-demo-primary-action>Draw Random Green Pixel</button>
               <button class="button-secondary action-button" id="buy-tokens" data-demo-secondary-action>Buy 25 🥑</button>
+              <button class="button-secondary action-button" id="sign-delegate" data-demo-tertiary-action hidden>Sign DelegateAction (gasless)<span class="btn-hint">Produces a relayer-submittable artifact — no on-chain effect</span></button>
+              <div class="demo-delegate-result" id="demo-delegate-result" hidden>
+                <p class="demo-delegate-result-note">
+                  Signed 1 delegate action.
+                  <code id="demo-delegate-hash"></code>
+                  <button class="text-link demo-delegate-copy" type="button" data-demo-delegate-copy>Copy hash</button>
+                </p>
+                <p class="demo-delegate-result-help">
+                  Wallet returned a borsh-encoded <code>SignedDelegate</code> + 32-byte hash. A relayer would submit this on-chain so the user pays no gas.
+                  <a class="text-link external-link-indicator" href="https://docs.near.org/concepts/protocol/meta-transactions" rel="noopener noreferrer" target="_blank">What is a relayer?</a>
+                  Full <code>signedDelegateActions</code> object logged to the browser console.
+                </p>
+              </div>
               <p class="demo-actions-note" id="demo-actions-note" hidden></p>
             </div>
           </div>
