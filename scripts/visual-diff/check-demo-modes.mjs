@@ -78,7 +78,7 @@ async function runMode(browser, theme, label, setup) {
   if (!signedOut.info.signinVisible) failures.push("signedout: signin block should be visible");
   if (signedOut.info.interactiveVisible) failures.push("signedout: interactive block should be hidden");
   if (signedOut.info.customVisible) failures.push("signedout: custom block should be hidden");
-  if (signedOut.info.exampleOrder !== "10") failures.push(`signedout: example order should be 10, got ${signedOut.info.exampleOrder}`);
+  if (signedOut.info.exampleOrder !== "1") failures.push(`signedout: example order should be 1 (sits just below the hero so the demo is discoverable while signed out), got ${signedOut.info.exampleOrder}`);
 
   // 2. Interactive — simulate signed in at default contract.
   const interactive = await runMode(browser, "dark", "interactive", () => {

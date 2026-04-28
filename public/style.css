@@ -739,13 +739,16 @@ body.show-sticky-header .sticky-header {
 }
 
 .hero-shell { order: 0; }
+#example-app { order: 1; }
 #console { order: 3; }
 #surfaces { order: 4; }
 #docs { order: 5; }
 #recipes { order: 6; }
-#example-app { order: 10; }
 
-body.is-signed-in #example-app { order: 1; }
+/* Once a wallet is connected the live demo becomes the primary thing on
+   the page; bump the hero below it. While signed out, #example-app sits
+   right under the hero so the preview canvas + Sign In CTA stay
+   discoverable to humans and AI agents reading the page top-to-bottom. */
 body.is-signed-in .hero-shell { order: 2; }
 
 .demo-mode-block { display: none; }
