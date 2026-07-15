@@ -1,5 +1,6 @@
 // Validates the agent-first surface served from public/:
-// - public/recipes.json parses and has the 19 expected recipe IDs
+// - public/recipes.json parses, has the expected recipe IDs, and exposes the
+//   schema-v5 @fastnear/x402 discovery contract
 // - public/agents.js is syntactically valid JS
 // - public/llms.txt has the canonical anchor sections agents look for
 // - the synced public/* files match the sibling fastnear-js-monorepo
@@ -50,6 +51,129 @@ const EXPECTED_RECIPE_IDS = [
   "connect-testnet",
   "function-call-testnet",
 ];
+
+const EXPECTED_X402_ENTRYPOINTS = new Map([
+  ["@fastnear/x402", [
+    "createFastNearWalletSigner",
+    "createNearX402Client",
+    "createNearPaymentFetch",
+  ]],
+  ["@fastnear/x402/node", ["createLocalNearSigner"]],
+  ["@fastnear/x402/server", ["createNearResourceServer"]],
+  ["@fastnear/x402/facilitator", ["createNearFacilitator"]],
+]);
+
+const EXPECTED_X402_TASKS = new Map([
+  ["Pay an x402 URL from Node.js", {
+    use: ["createLocalNearSigner", "createNearPaymentFetch"],
+    imports: ["@fastnear/x402/node", "@fastnear/x402"],
+  }],
+  ["Pay an x402 URL from a browser wallet", {
+    use: ["createFastNearWalletSigner", "createNearPaymentFetch"],
+    imports: ["@fastnear/wallet", "@fastnear/x402"],
+  }],
+  ["Protect a seller resource", {
+    use: ["createNearResourceServer"],
+    imports: ["@fastnear/x402/server"],
+  }],
+  ["Operate a NEAR facilitator", {
+    use: ["createNearFacilitator"],
+    imports: ["@fastnear/x402/facilitator"],
+  }],
+  ["Integrate below the paid-fetch helper", {
+    use: ["createNearX402Client"],
+    imports: ["@fastnear/x402"],
+  }],
+]);
+
+function hasExactStrings(actual, expected) {
+  return Array.isArray(actual)
+    && actual.length === expected.length
+    && expected.every((value) => actual.includes(value));
+}
+
+function validateX402Discovery(value) {
+  if (value.version !== 5) {
+    fail(`recipes.json must use schema v5 for x402 discovery (found ${JSON.stringify(value.version)}; sync the stable schema-v5 artifacts before launch)`);
+  }
+  if (!Array.isArray(value.packages) || !value.packages.includes("@fastnear/x402")) {
+    fail(`recipes.json packages must identify @fastnear/x402`);
+  }
+
+  const surface = value.x402;
+  if (!surface || typeof surface !== "object" || Array.isArray(surface)) {
+    fail(`recipes.json missing top-level x402 discovery metadata`);
+    return;
+  }
+  if (surface.package !== "@fastnear/x402") {
+    fail(`recipes.json x402.package must be @fastnear/x402`);
+  }
+
+  if (!Array.isArray(surface.entrypoints) || surface.entrypoints.length !== 4) {
+    fail(`recipes.json x402 must expose exactly four focused entrypoints`);
+  } else {
+    const factories = [];
+    for (const [subpath, expectedExports] of EXPECTED_X402_ENTRYPOINTS) {
+      const entrypoint = surface.entrypoints.find((item) => item?.subpath === subpath);
+      if (!entrypoint || !hasExactStrings(entrypoint.exports, expectedExports)) {
+        fail(`recipes.json x402 entrypoint ${subpath} has unexpected exports`);
+      } else {
+        factories.push(...entrypoint.exports);
+      }
+    }
+    if (factories.length !== 6 || new Set(factories).size !== 6) {
+      fail(`recipes.json x402 entrypoints must expose exactly six unique factories`);
+    }
+  }
+
+  if (!Array.isArray(surface.chooseByTask)) {
+    fail(`recipes.json x402 missing task-to-entrypoint mappings`);
+  } else {
+    for (const [task, expected] of EXPECTED_X402_TASKS) {
+      const mapping = surface.chooseByTask.find((item) => item?.task === task);
+      if (!mapping
+        || !hasExactStrings(mapping.use, expected.use)
+        || !hasExactStrings(mapping.imports, expected.imports)) {
+        fail(`recipes.json x402 task mapping is incomplete for ${JSON.stringify(task)}`);
+      }
+    }
+  }
+
+  const quickstartIds = Array.isArray(surface.quickstarts)
+    ? surface.quickstarts.map((item) => item?.id)
+    : [];
+  for (const id of ["x402-node-paid-fetch", "x402-remote-facilitator-seller"]) {
+    if (!quickstartIds.includes(id)) {
+      fail(`recipes.json x402 missing quickstart ${id}`);
+    }
+  }
+
+  const protocol = surface.protocol;
+  if (protocol?.version !== 2
+    || protocol?.scheme !== "exact"
+    || !hasExactStrings(protocol?.networks, ["near:mainnet", "near:testnet"])) {
+    fail(`recipes.json x402 protocol must be v2 exact on NEAR mainnet/testnet only`);
+  }
+  const constraints = Array.isArray(surface.constraints) ? surface.constraints : [];
+  for (const phrase of ["Only x402 v2 exact", "NEP-141", "explicit facilitator"]) {
+    if (!constraints.some((constraint) => typeof constraint === "string" && constraint.includes(phrase))) {
+      fail(`recipes.json x402 constraints missing ${JSON.stringify(phrase)}`);
+    }
+  }
+
+  let guideUrl;
+  try {
+    guideUrl = new URL(surface.guideUrl);
+  } catch {
+    guideUrl = null;
+  }
+  if (!guideUrl
+    || guideUrl.protocol !== "https:"
+    || !guideUrl.hostname
+    || !guideUrl.pathname.endsWith("/packages/x402/README.md")) {
+    fail(`recipes.json x402 guideUrl must be an absolute HTTPS package-guide URL`);
+  }
+}
 
 const LLMS_REQUIRED_SECTIONS = [
   "# FastNear JS monorepo",
@@ -104,6 +228,7 @@ if (catalog) {
       console.log(`note: recipes.json has ${extra.length} extra ID(s) not in EXPECTED_RECIPE_IDS: ${extra.join(", ")}`);
     }
   }
+  validateX402Discovery(catalog);
 }
 console.log(`recipes.json: ${actualIds.length} recipes, ${EXPECTED_RECIPE_IDS.length} expected`);
 
