@@ -444,7 +444,7 @@
 
     <section class="section-shell" id="post-quantum">
       <div class="section-header">
-        <div class="section-kicker">Post-quantum keys <span class="badge-pill badge-pill-subtle">Preview</span></div>
+        <div class="section-kicker">Post-quantum keys <span class="badge-pill badge-pill-subtle">New</span></div>
         <h2 class="section-title">Sign NEAR transactions with post-quantum ML-DSA-65 keys.</h2>
         <p class="section-summary">
           NEAR adds <strong>ML-DSA-65</strong> (NIST FIPS 204, the lattice signature scheme also known as
@@ -486,7 +486,7 @@
             <div>
               <div class="card-kicker">Enroll and sign</div>
               <p class="code-card-context">
-                The intended flow from the <code>@fastnear/ml-dsa-65</code> quickstarts (ESM). Requires the
+                The flow from the <code>@fastnear/ml-dsa-65</code> quickstarts (ESM). Requires the
                 package and an RPC on protocol v85.
               </p>
             </div>
@@ -524,10 +524,10 @@ await sendTx({
         <div class="callout callout-info callout-compact">
           <span class="callout-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg></span>
           <div class="callout-copy">
-            <strong class="callout-title">Preview — ships with @fastnear/ml-dsa-65</strong>
+            <strong class="callout-title">Opt-in, with a security caveat</strong>
             <p class="callout-body">
-              The package isn't published yet, so these APIs go live on <code>js.fastnear.com</code> once it
-              ships. The reference backend (<code>@noble/post-quantum</code>) is self-audited and not
+              Add <code>@fastnear/ml-dsa-65</code> alongside <code>@fastnear/api</code> to enable it. The
+              reference backend (<code>@noble/post-quantum</code>) is self-audited and not
               constant-time — use a hardware or WASM signer for stronger threat models, and never log or
               persist a generated seed or secret key. Full quickstarts — generate, explicit-send,
               enroll-delete, reconcile — live in
