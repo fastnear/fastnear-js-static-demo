@@ -442,6 +442,104 @@
       </div>
     </section>
 
+    <section class="section-shell" id="post-quantum">
+      <div class="section-header">
+        <div class="section-kicker">Post-quantum keys <span class="badge-pill badge-pill-subtle">Preview</span></div>
+        <h2 class="section-title">Sign NEAR transactions with post-quantum ML-DSA-65 keys.</h2>
+        <p class="section-summary">
+          NEAR adds <strong>ML-DSA-65</strong> (NIST FIPS 204, the lattice signature scheme also known as
+          Dilithium) as an account access-key and transaction-signing type alongside Ed25519 and secp256k1,
+          starting at protocol version 85. FastNear ships it opt-in in a standalone
+          <code>@fastnear/ml-dsa-65</code> package, so apps that only use classical keys never download the
+          post-quantum implementation.
+        </p>
+      </div>
+      <div class="console-card-grid">
+        <article class="card">
+          <div class="card-kicker">How it works</div>
+          <ul class="hero-points">
+            <li>
+              Generate an in-memory signer with <code>generateSigner()</code>, then enroll its full public
+              key with a classical full-access <code>AddKey</code> — enrollment always starts from an existing
+              classical signer.
+            </li>
+            <li>
+              Sign and submit through <code>sendTx({ signerId, signer, … })</code> in
+              <code>@fastnear/api</code>; the signer is bridged in via a structural
+              <code>TransactionSigner</code>, and <code>queryProtocolVersion()</code> enforces v85.
+            </li>
+            <li>
+              Two key forms: the full <code>ml-dsa-65:&lt;base58&gt;</code> for AddKey, lookup, signing, and
+              DeleteKey, and the compact <code>ml-dsa-65-hash:&lt;base58&gt;</code> handle NEAR stores on-chain —
+              reconcile them with <code>publicKeyToHandle()</code>.
+            </li>
+            <li>
+              Wire facts: 1,952-byte public keys, 3,309-byte signatures, and a 100 Ggas charge per
+              verification. Scope is access keys and transaction signatures only — validator and staking keys
+              stay Ed25519.
+            </li>
+          </ul>
+        </article>
+
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Enroll and sign</div>
+              <p class="code-card-context">
+                The intended flow from the <code>@fastnear/ml-dsa-65</code> quickstarts (ESM). Requires the
+                package and an RPC on protocol v85.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="pq-snippet">import { generateSigner } from "@fastnear/ml-dsa-65";
+import { actions, queryProtocolVersion, sendTx } from "@fastnear/api";
+
+// 1. Create an in-memory post-quantum signer.
+const signer = generateSigner();
+
+// 2. Enroll signer.publicKey with a classical full-access AddKey
+//    (this step needs an existing classical signer).
+
+// 3. Require an RPC on protocol v85, then sign + submit.
+if ((await queryProtocolVersion({ network: "testnet" })) &lt; 85) {
+  throw new Error("RPC does not support ML-DSA-65 yet");
+}
+
+await sendTx({
+  signerId: "device.testnet",
+  signer,
+  receiverId: "device.testnet",
+  actions: [actions.transfer("1")],
+  waitUntil: "FINAL",
+  network: "testnet",
+});</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#pq-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <div class="callout callout-info callout-compact">
+          <span class="callout-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg></span>
+          <div class="callout-copy">
+            <strong class="callout-title">Preview — ships with @fastnear/ml-dsa-65</strong>
+            <p class="callout-body">
+              The package isn't published yet, so these APIs go live on <code>js.fastnear.com</code> once it
+              ships. The reference backend (<code>@noble/post-quantum</code>) is self-audited and not
+              constant-time — use a hardware or WASM signer for stronger threat models, and never log or
+              persist a generated seed or secret key. Full quickstarts — generate, explicit-send,
+              enroll-delete, reconcile — live in
+              <a class="jump-link" data-hosted-asset-link="recipes" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>,
+              with the scheme defined in
+              <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://csrc.nist.gov/pubs/fips/204/final" rel="noopener noreferrer" target="_blank">NIST FIPS 204</a>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="section-shell example-section" id="example-app">
       <div class="section-header">
         <div class="section-kicker">Browser example</div>
@@ -566,6 +664,7 @@
         <span class="nav-label">Resources</span>
         <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/agents" rel="noopener noreferrer" target="_blank">Agents</a>
         <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/auth" rel="noopener noreferrer" target="_blank">Auth</a>
+        <a class="nav-link jump-link" href="#post-quantum">Post-quantum</a>
         <a class="nav-link jump-link" data-hosted-asset-link="recipes" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>
         <a class="nav-link jump-link" data-hosted-asset-link="agents" href="./agents.js" rel="noopener noreferrer" target="_blank">agents.js</a>
         <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://www.npmjs.com/package/@fastnear/api" rel="noopener noreferrer" target="_blank">npm</a>
