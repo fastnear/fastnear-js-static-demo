@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta content="width=device-width,initial-scale=1.0" name="viewport" />
+  <title>Not found — FastNear JS</title>
+  <meta content="This page doesn't exist on js.fastnear.com. Jump back to the FastNear JS docs, topic pages, or agent artifacts." name="description" />
+  <meta content="noindex" name="robots" />
+  <link href="assets/favicon.png" rel="icon" type="image/png" />
+  <link href="https://fonts.googleapis.com" rel="preconnect" />
+  <link crossorigin href="https://fonts.gstatic.com" rel="preconnect" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+
+  <script>
+    (() => {
+      const storageKey = "theme";
+      const legacyStorageKey = "fastnear:theme";
+      const storedTheme = localStorage.getItem(storageKey) || localStorage.getItem(legacyStorageKey);
+      if (!localStorage.getItem(storageKey) && (storedTheme === "light" || storedTheme === "dark")) {
+        localStorage.setItem(storageKey, storedTheme);
+        localStorage.removeItem(legacyStorageKey);
+      }
+      if (storedTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    })();
+  </script>
+
+  <link href="style.css" rel="stylesheet" />
+</head>
+
+<body>
+  <main class="page-shell">
+    <section class="section-shell">
+      <div class="section-head">
+        <div class="section-kicker">HTTP 404</div>
+        <h1 class="section-title">This page doesn't exist.</h1>
+        <p class="section-summary">
+          The URL you requested isn't part of js.fastnear.com. If you followed a link here,
+          it's stale — these are the live surfaces:
+        </p>
+      </div>
+      <ul class="hero-points">
+        <li><a class="text-link" href="/">The main demo and docs page</a></li>
+        <li>
+          Topic pages: <a class="text-link" href="/intents">NEAR Intents</a>,
+          <a class="text-link" href="/x402">x402 payments</a>,
+          <a class="text-link" href="/post-quantum">post-quantum keys</a>,
+          <a class="text-link" href="/retries">retries &amp; bulk reads</a>
+        </li>
+        <li>
+          Agent artifacts: <a class="text-link" href="/recipes.json">recipes.json</a>,
+          <a class="text-link" href="/llms.txt">llms.txt</a>,
+          <a class="text-link" href="/agents.js">agents.js</a>
+        </li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

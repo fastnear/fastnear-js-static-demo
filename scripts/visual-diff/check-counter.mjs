@@ -14,7 +14,7 @@ async function capture(browser, theme, viewport, label) {
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
-  page.on("console", (m) => { if (m.type() === "error") errors.push(`console.error: ${m.text()}`); });
+  page.on("console", (m) => { if (m.type() !== "error" || (m.location()?.url || "").includes("cloudflareinsights.com")) return; errors.push(`console.error: ${m.text()}`); });
 
   await page.goto("http://localhost:8000/index.html?network=testnet", { waitUntil: "domcontentloaded" });
   try { await page.waitForLoadState("networkidle", { timeout: 15000 }); } catch {}

@@ -40,7 +40,9 @@ const [vpW, vpH] = (args.viewport || "1280x900").split("x").map(Number);
   const consoleErrors = [];
   page.on("pageerror", (err) => consoleErrors.push(`pageerror: ${err.message}`));
   page.on("console", (msg) => {
-    if (msg.type() === "error") consoleErrors.push(`console.error: ${msg.text()}`);
+    if (msg.type() !== "error") return;
+    if ((msg.location()?.url || "").includes("cloudflareinsights.com")) return;
+    consoleErrors.push(`console.error: ${msg.text()}`);
   });
 
   await page.goto(URL, { waitUntil: "domcontentloaded", timeout: 30000 });
