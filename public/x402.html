@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta content="width=device-width,initial-scale=1.0" name="viewport" />
+  <title>x402 payments on NEAR — FastNear JS</title>
+  <meta
+    content="Pay x402-protected URLs with NEAR using @fastnear/x402: browser wallet payers, Node payers, seller resource servers, and self-hosted facilitators — x402 v2 exact payments settled as NEP-141 token transfers."
+    name="description"
+  />
+  <link href="assets/favicon.png" rel="icon" type="image/png" />
+  <link href="https://fonts.googleapis.com" rel="preconnect" />
+  <link crossorigin href="https://fonts.gstatic.com" rel="preconnect" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+
+  <script>
+    (() => {
+      const storageKey = "theme";
+      const legacyStorageKey = "fastnear:theme";
+      const storedTheme = localStorage.getItem(storageKey) || localStorage.getItem(legacyStorageKey);
+      if (!localStorage.getItem(storageKey) && (storedTheme === "light" || storedTheme === "dark")) {
+        localStorage.setItem(storageKey, storedTheme);
+        localStorage.removeItem(legacyStorageKey);
+      }
+      if (storedTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    })();
+  </script>
+
+  <script type="module">
+    import { wireUpTopicPage } from "./page.js";
+
+    wireUpTopicPage();
+  </script>
+
+  <link href="style.css" rel="stylesheet" />
+
+  <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0c50ed3b94a1468199725e8c5d6df7ef"}'></script><!-- End Cloudflare Web Analytics -->
+</head>
+
+<body>
+  <header class="site-header">
+    <div class="top-header-shell">
+      <div class="brand-cluster">
+        <a class="site-brand" href="./">
+          <span aria-hidden="true" class="site-brand-logo">
+            <img
+              alt=""
+              class="site-brand-logo-image site-brand-logo-light"
+              height="56"
+              src="assets/fastnear_logo_black.png"
+              width="259"
+            />
+            <img
+              alt=""
+              class="site-brand-logo-image site-brand-logo-dark"
+              height="56"
+              src="assets/fastnear_logo_white.png"
+              width="259"
+            />
+          </span>
+          <span class="site-brand-copy">
+            <span class="site-brand-title">FastNear JS</span>
+            <span class="site-brand-subtitle">Agent-first NEAR RPC/API lib</span>
+          </span>
+        </a>
+      </div>
+
+      <div class="header-controls">
+        <button
+          aria-label="Toggle theme"
+          class="theme-toggle"
+          data-theme-toggle="true"
+          title="Switch to dark mode"
+          type="button"
+        ></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="section-shell" id="overview">
+      <div class="section-header">
+        <div class="section-kicker">HTTP payments <span class="badge-pill badge-pill-subtle">New</span></div>
+        <h2 class="section-title">Pay x402-protected URLs with NEAR.</h2>
+        <p class="section-summary">
+          x402 turns HTTP <code>402 Payment Required</code> into a machine-payable flow: a server answers
+          with a payment challenge, the client pays, and the same request retries with proof of payment.
+          <code>@fastnear/x402</code> implements the official <strong>x402 v2 exact</strong> scheme on
+          <code>near:mainnet</code> and <code>near:testnet</code> — payments settle as NEP-141 fungible-token
+          transfers authorized with a NEP-366 <code>SignedDelegate</code>, so a facilitator relays the
+          transaction and pays gas on the payer's behalf. The package is package-only: it ships separately
+          and is not part of <code>near.js</code> or <code>agents.js</code>.
+        </p>
+      </div>
+
+      <div class="console-card-grid">
+        <article class="card">
+          <div class="card-kicker">Canonical payment shape</div>
+          <ul class="hero-points">
+            <li>
+              Protocol: <strong>x402 v2</strong>, <code>exact</code> scheme only, on
+              <code>near:mainnet</code> and <code>near:testnet</code>.
+            </li>
+            <li>
+              Settlement: one NEP-141 <code>ft_transfer</code> (30&nbsp;TGas, 1&nbsp;yoctoNEAR deposit)
+              relayed by the facilitator — native NEAR is not a direct payment asset, and recipients need
+              token storage registration.
+            </li>
+            <li>
+              Authorization: the payer signs a NEP-366 <code>SignedDelegate</code>; wallet and local-key
+              payers therefore need <strong>full-access keys</strong>.
+            </li>
+            <li>
+              Browser wallets must advertise both <code>signDelegateActions</code> and the timeout-aware
+              <code>signDelegateActionsWithTtl</code>.
+            </li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-shell" id="roles">
+      <div class="section-header">
+        <div class="section-kicker">Integration map</div>
+        <h2 class="section-title">Pick the smallest surface for the job.</h2>
+        <p class="section-summary">
+          Browser clients, Node clients, sellers, and facilitators use focused entrypoints so server code
+          and secrets never leak into the wallet page.
+        </p>
+      </div>
+
+      <div class="docs-grid">
+        <article class="card">
+          <div class="card-kicker">Browser wallet payer</div>
+          <h3 class="card-title">A user pays after clicking</h3>
+          <p class="card-summary">
+            Inject <code>nearWallet</code> into the x402 signer; the browser global is
+            <code>nearX402</code>.
+          </p>
+          <ul class="surface-list">
+            <li>Import: <code>@fastnear/x402</code> root</li>
+            <li>Factories: <code>createFastNearWalletSigner</code>, <code>createNearPaymentFetch</code></li>
+            <li>Secrets: none in browser code</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <div class="card-kicker">Node payer</div>
+          <h3 class="card-title">A backend or agent pays</h3>
+          <p class="card-summary">
+            An RPC-backed local signer for server-side processes and AI agents paying protected URLs.
+          </p>
+          <ul class="surface-list">
+            <li>Import: <code>@fastnear/x402/node</code> + root</li>
+            <li>Factories: <code>createLocalNearSigner</code>, <code>createNearPaymentFetch</code></li>
+            <li>Secrets: payer full-access key, server-side only</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <div class="card-kicker">Seller</div>
+          <h3 class="card-title">A server protects a route</h3>
+          <p class="card-summary">
+            Build the NEAR resource-server core, then hand it to the x402 HTTP framework adapter you
+            choose.
+          </p>
+          <ul class="surface-list">
+            <li>Import: <code>@fastnear/x402/server</code></li>
+            <li>Factory: <code>createNearResourceServer</code></li>
+            <li>Secrets: usually none; the facilitator is configured explicitly — there is no default</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <div class="card-kicker">Facilitator operator</div>
+          <h3 class="card-title">A relayer verifies and settles</h3>
+          <p class="card-summary">
+            The relayer pays gas and the 1-yoctoNEAR deposit; HTTP framework and secret storage are
+            operator choices.
+          </p>
+          <ul class="surface-list">
+            <li>Import: <code>@fastnear/x402/facilitator</code></li>
+            <li>Factory: <code>createNearFacilitator</code></li>
+            <li>Secrets: relayer full-access key, server-side only</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-shell" id="quickstarts">
+      <div class="section-header">
+        <div class="section-kicker">Quickstarts</div>
+        <h2 class="section-title">Two payer paths, one paid-fetch helper.</h2>
+        <p class="section-summary">
+          Both paths end in <code>createNearPaymentFetch</code>: a drop-in <code>fetch</code> that answers
+          a 402 challenge by paying, then retries the request. Seller and facilitator quickstarts live in
+          the <code>x402</code> key of
+          <a class="jump-link" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>.
+        </p>
+      </div>
+
+      <div class="console-card-grid">
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Browser wallet payer</div>
+              <p class="code-card-context">
+                IIFE globals from <code>wallet.js</code> and <code>x402.js</code>. Connect and pay must be
+                explicit user actions — never auto-connect or auto-pay.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="x402-browser-snippet">&lt;script src="https://js.fastnear.com/wallet.js"&gt;&lt;/script&gt;
+&lt;script src="https://js.fastnear.com/x402.js"&gt;&lt;/script&gt;
+&lt;script type="module"&gt;
+  // Wire these to buttons: connect first, pay second.
+  await nearWallet.connect();
+
+  const signer = nearX402.createFastNearWalletSigner({
+    wallet: nearWallet,
+  });
+
+  const paidFetch = nearX402.createNearPaymentFetch({
+    signer,
+    network: "near:testnet",
+  });
+
+  const response = await paidFetch("https://seller.example.com/paid");
+&lt;/script&gt;</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#x402-browser-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Node payer</div>
+              <p class="code-card-context">
+                The quickstart from the catalog (ESM). The payer secret key stays in server-side
+                environment variables, never browser code.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="x402-node-snippet">import { createNearPaymentFetch } from "@fastnear/x402";
+import { createLocalNearSigner } from "@fastnear/x402/node";
+
+const { NEAR_PAYER_ACCOUNT_ID, NEAR_PAYER_SECRET_KEY, X402_RESOURCE_URL } = process.env;
+if (!NEAR_PAYER_ACCOUNT_ID || !NEAR_PAYER_SECRET_KEY || !X402_RESOURCE_URL) {
+  throw new Error("NEAR_PAYER_ACCOUNT_ID, NEAR_PAYER_SECRET_KEY, and X402_RESOURCE_URL are required");
+}
+
+const signer = createLocalNearSigner({
+  accountId: NEAR_PAYER_ACCOUNT_ID,
+  secretKey: NEAR_PAYER_SECRET_KEY,
+  rpcUrls: { "near:testnet": "https://rpc.testnet.fastnear.com" },
+});
+const paidFetch = createNearPaymentFetch({ signer, network: "near:testnet" });
+const response = await paidFetch(X402_RESOURCE_URL);
+if (!response.ok) throw new Error(`Paid request failed: ${response.status}`);
+console.log(await response.json());</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#x402-node-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <div class="callout callout-info callout-compact">
+          <span class="callout-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg></span>
+          <div class="callout-copy">
+            <strong class="callout-title">Wallet compatibility</strong>
+            <p class="callout-body">
+              The browser path is stable with tested Meteor Wallet support; other wallets must advertise
+              both timeout-aware delegate-signing capabilities (<code>signDelegateActions</code> and
+              <code>signDelegateActionsWithTtl</code>) and pass the x402 testnet harness before being
+              documented as compatible.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-shell" id="guardrails">
+      <div class="section-header">
+        <div class="section-kicker">Guardrails</div>
+        <h2 class="section-title">Hard constraints and safe defaults.</h2>
+        <p class="section-summary">
+          These rules come from the machine-readable catalog — agents and humans should apply the same
+          ones.
+        </p>
+      </div>
+
+      <div class="docs-grid">
+        <article class="card">
+          <div class="card-kicker">Hard constraints</div>
+          <ul class="hero-points">
+            <li>Only x402 v2 <code>exact</code> payments on <code>near:mainnet</code> and <code>near:testnet</code> are supported.</li>
+            <li>Payments use NEP-141 tokens; native NEAR is not a direct payment asset.</li>
+            <li>Wallet and local-key payers require full-access keys, and recipients need token storage registration.</li>
+            <li>Resource servers require an explicit facilitator; no x402.org or other default is selected.</li>
+            <li>Browser wallet access is injected explicitly, and payment occurs only when the application calls the paid-fetch function.</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <div class="card-kicker">Safe defaults</div>
+          <ul class="hero-points">
+            <li>Pin <code>near:testnet</code> during development and a concrete NEAR network in production; use <code>near:*</code> only for an intentionally cross-network client.</li>
+            <li>Keep payer and relayer secret keys in server-side secret storage, never browser code.</li>
+            <li>String and number seller prices use the official USDC contract; wNEAR and custom tokens require an explicit <code>{ amount, asset }</code> price.</li>
+            <li>Always configure a facilitator explicitly.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="callout callout-info callout-compact">
+        <span class="callout-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg></span>
+        <div class="callout-copy">
+          <strong class="callout-title">Go deeper</strong>
+          <p class="callout-body">
+            AI agents: read the <code>x402</code> key in
+            <a class="jump-link" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>
+            and the x402 section of
+            <a class="jump-link" href="./llms.txt" rel="noopener noreferrer" target="_blank">llms.txt</a>
+            before editing an app. Humans: the canonical package guide is the
+            <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://github.com/fastnear/js-monorepo/blob/main/packages/x402/README.md" rel="noopener noreferrer" target="_blank">@fastnear/x402 README</a>,
+            and the facilitator directory lives at
+            <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://docs.x402.org/dev-tools/facilitators" rel="noopener noreferrer" target="_blank">docs.x402.org</a>.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-nav">
+      <nav aria-label="FastNear topic pages" class="footer-nav-group">
+        <span class="nav-label">Topics</span>
+        <a class="nav-link jump-link" href="./x402.html">x402 payments</a>
+        <a class="nav-link jump-link" href="./post-quantum.html">Post-quantum keys</a>
+        <a class="nav-link jump-link" href="./retries.html">Retries &amp; bulk reads</a>
+      </nav>
+
+      <nav aria-label="FastNear docs" class="footer-nav-group">
+        <span class="nav-label">Docs</span>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/rpc" rel="noopener noreferrer" target="_blank">RPC</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/api" rel="noopener noreferrer" target="_blank">API</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/tx" rel="noopener noreferrer" target="_blank">Transactions</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/transfers" rel="noopener noreferrer" target="_blank">Transfers</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/neardata" rel="noopener noreferrer" target="_blank">NEAR Data</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/fastdata/kv" rel="noopener noreferrer" target="_blank">FastData KV</a>
+      </nav>
+
+      <nav aria-label="FastNear resources" class="footer-nav-group">
+        <span class="nav-label">Resources</span>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/agents" rel="noopener noreferrer" target="_blank">Agents</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/auth" rel="noopener noreferrer" target="_blank">Auth</a>
+        <a class="nav-link jump-link" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>
+        <a class="nav-link jump-link" href="./agents.js" rel="noopener noreferrer" target="_blank">agents.js</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://www.npmjs.com/package/@fastnear/x402" rel="noopener noreferrer" target="_blank">npm</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://github.com/fastnear/js-monorepo" rel="noopener noreferrer" target="_blank">GitHub</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://dashboard.fastnear.com" rel="noopener noreferrer" target="_blank">FastNear Dashboard</a>
+      </nav>
+    </div>
+    <div class="footer-shell">
+      <span>FastNear JS for agents and developers</span>
+      <span>Powered by generated tasks from the FastNear JS monorepo</span>
+    </div>
+  </footer>
+</body>
+</html>
