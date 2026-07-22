@@ -442,28 +442,6 @@
       </div>
     </section>
 
-    <section class="section-shell" id="x402">
-      <div class="section-header">
-        <div class="section-kicker">HTTP payments <span class="badge-pill badge-pill-subtle">New</span></div>
-        <h2 class="section-title">Pay for HTTP resources with NEAR.</h2>
-      </div>
-      <div class="console-card-grid">
-        <article class="card">
-          <div class="card-kicker">@fastnear/x402</div>
-          <h3 class="card-title">Client, seller, and facilitator adapters.</h3>
-          <p class="card-summary">
-            Use the official x402 v2 exact scheme with NEP-141 tokens on NEAR: add paid-fetch helpers
-            to clients, require an explicit facilitator for sellers, or host a facilitator yourself.
-          </p>
-          <div class="hero-actions">
-            <a class="button-secondary button-small" href="https://www.npmjs.com/package/@fastnear/x402" rel="noopener noreferrer" target="_blank">Open on npm</a>
-            <a class="button-secondary button-small" href="https://github.com/fastnear/js-monorepo/blob/main/packages/x402/README.md" rel="noopener noreferrer" target="_blank">Read the package guide</a>
-            <a class="button-secondary button-small" data-hosted-asset-link="recipes" href="./recipes.json" rel="noopener noreferrer" target="_blank">Explore recipes.json</a>
-          </div>
-        </article>
-      </div>
-    </section>
-
     <section class="section-shell" id="post-quantum">
       <div class="section-header">
         <div class="section-kicker">Post-quantum keys <span class="badge-pill badge-pill-subtle">New</span></div>
@@ -551,11 +529,107 @@ await sendTx({
               Add <code>@fastnear/ml-dsa-65</code> alongside <code>@fastnear/api</code> to enable it. The
               reference backend (<code>@noble/post-quantum</code>) is self-audited and not
               constant-time — use a hardware or WASM signer for stronger threat models, and never log or
-              persist a generated seed or secret key. Full quickstarts — generate, explicit-send,
+              persist a generated seed or secret key. Read the
+              <a class="jump-link" href="./post-quantum.html">full explainer</a> for key forms, wire
+              sizes, and safety rules. Full quickstarts — generate, explicit-send,
               enroll-delete, reconcile — live in
               <a class="jump-link" data-hosted-asset-link="recipes" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>,
               with the scheme defined in
               <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://csrc.nist.gov/pubs/fips/204/final" rel="noopener noreferrer" target="_blank">NIST FIPS 204</a>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-shell" id="x402">
+      <div class="section-header">
+        <div class="section-kicker">HTTP payments <span class="badge-pill badge-pill-subtle">New</span></div>
+        <h2 class="section-title">Pay x402-protected URLs with NEAR.</h2>
+        <p class="section-summary">
+          x402 turns HTTP <code>402 Payment Required</code> into a machine-payable flow: the server
+          answers with a payment challenge, the client pays, and the same request retries with proof of
+          payment. <code>@fastnear/x402</code> implements the official <strong>x402 v2 exact</strong>
+          scheme on <code>near:mainnet</code> and <code>near:testnet</code> — payments settle as NEP-141
+          token transfers authorized with a NEP-366 <code>SignedDelegate</code>. The package ships
+          separately and is not part of <code>near.js</code> or <code>agents.js</code>.
+        </p>
+      </div>
+      <div class="console-card-grid">
+        <article class="card">
+          <div class="card-kicker">How it works</div>
+          <ul class="hero-points">
+            <li>
+              Every payer path ends in <code>createNearPaymentFetch</code> — a drop-in
+              <code>fetch</code> that answers a 402 challenge by paying, then retries the request.
+            </li>
+            <li>
+              Settlement is one NEP-141 <code>ft_transfer</code> (30&nbsp;TGas, 1&nbsp;yoctoNEAR
+              deposit) relayed by a facilitator that pays gas on the payer's behalf; payers sign with
+              full-access keys.
+            </li>
+            <li>
+              Four focused entrypoints keep secrets out of the wallet page: the root for browser wallet
+              payers (global <code>nearX402</code>), <code>/node</code> for local-key payers,
+              <code>/server</code> for sellers, and <code>/facilitator</code> for relayer operators.
+            </li>
+            <li>
+              Sellers always configure a facilitator explicitly — there is no hidden default — and
+              browser payments only happen on explicit user actions.
+            </li>
+          </ul>
+        </article>
+
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Browser paid fetch</div>
+              <p class="code-card-context">
+                IIFE globals from <code>wallet.js</code> and <code>x402.js</code>. Connect and pay must
+                be explicit user actions — never auto-connect or auto-pay.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="x402-snippet">&lt;script src="https://js.fastnear.com/wallet.js"&gt;&lt;/script&gt;
+&lt;script src="https://js.fastnear.com/x402.js"&gt;&lt;/script&gt;
+&lt;script type="module"&gt;
+  // Wire these to buttons: connect first, pay second.
+  await nearWallet.connect();
+
+  const signer = nearX402.createFastNearWalletSigner({
+    wallet: nearWallet,
+  });
+
+  const paidFetch = nearX402.createNearPaymentFetch({
+    signer,
+    network: "near:testnet",
+  });
+
+  const response = await paidFetch("https://seller.example.com/paid");
+&lt;/script&gt;</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#x402-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <div class="callout callout-info callout-compact">
+          <span class="callout-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg></span>
+          <div class="callout-copy">
+            <strong class="callout-title">Wallet compatibility, and where to go deeper</strong>
+            <p class="callout-body">
+              The browser path is stable with tested Meteor Wallet support; other wallets must advertise
+              both timeout-aware delegate-signing capabilities and pass the x402 testnet harness before
+              being documented as compatible. Read the
+              <a class="jump-link" href="./x402.html">full explainer</a> for the seller and facilitator
+              roles, or go straight to the <code>x402</code> key in
+              <a class="jump-link" data-hosted-asset-link="recipes" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>
+              and the
+              <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://github.com/fastnear/js-monorepo/blob/main/packages/x402/README.md" rel="noopener noreferrer" target="_blank">@fastnear/x402 README</a>
+              or the package on
+              <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://www.npmjs.com/package/@fastnear/x402" rel="noopener noreferrer" target="_blank">npm</a>.
             </p>
           </div>
         </div>
@@ -672,6 +746,13 @@ await sendTx({
 
   <footer class="site-footer">
     <div class="footer-nav">
+      <nav aria-label="FastNear topic pages" class="footer-nav-group">
+        <span class="nav-label">Topics</span>
+        <a class="nav-link jump-link" href="./x402.html">x402 payments</a>
+        <a class="nav-link jump-link" href="./post-quantum.html">Post-quantum keys</a>
+        <a class="nav-link jump-link" href="./retries.html">Retries &amp; bulk reads</a>
+      </nav>
+
       <nav aria-label="FastNear docs" class="footer-nav-group">
         <span class="nav-label">Docs</span>
         <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/rpc" rel="noopener noreferrer" target="_blank">RPC</a>
@@ -686,8 +767,6 @@ await sendTx({
         <span class="nav-label">Resources</span>
         <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/agents" rel="noopener noreferrer" target="_blank">Agents</a>
         <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/auth" rel="noopener noreferrer" target="_blank">Auth</a>
-        <a class="nav-link jump-link" href="#x402">x402</a>
-        <a class="nav-link jump-link" href="#post-quantum">Post-quantum</a>
         <a class="nav-link jump-link" data-hosted-asset-link="recipes" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>
         <a class="nav-link jump-link" data-hosted-asset-link="agents" href="./agents.js" rel="noopener noreferrer" target="_blank">agents.js</a>
         <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://www.npmjs.com/package/@fastnear/api" rel="noopener noreferrer" target="_blank">npm</a>

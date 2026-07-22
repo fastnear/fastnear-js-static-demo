@@ -28,6 +28,10 @@ Runtime has **zero npm dependencies** — `@fastnear/*` packages load as IIFE gl
 public/
   index.html              # Entry point — loads IIFE globals + ES module
   index.js                # App logic: wireUpAppEarly() + wireUpAppLate()
+  x402.html               # Topic page — x402 payments on NEAR (@fastnear/x402)
+  post-quantum.html       # Topic page — ML-DSA-65 post-quantum keys
+  retries.html            # Topic page — retries + bulk reads (429 resilience)
+  page.js                 # Shared chrome for topic pages (theme toggle, code buttons)
   style.css               # Tachyons + custom dark theme
   manifest.json           # Wallet manifest — wallet list, executors, permissions
   assets/                 # Images and icons

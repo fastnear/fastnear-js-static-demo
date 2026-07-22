@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta content="width=device-width,initial-scale=1.0" name="viewport" />
+  <title>Retries and bulk reads — FastNear JS</title>
+  <meta
+    content="@fastnear/api retries transient RPC failures (429s and friends) with full-jitter backoff and exposes concurrency-capped bulk reads — near.batch and near.view.many return settled results with typed error kinds. Both are on by default and tuned through near.config."
+    name="description"
+  />
+  <link href="assets/favicon.png" rel="icon" type="image/png" />
+  <link href="https://fonts.googleapis.com" rel="preconnect" />
+  <link crossorigin href="https://fonts.gstatic.com" rel="preconnect" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+
+  <script>
+    (() => {
+      const storageKey = "theme";
+      const legacyStorageKey = "fastnear:theme";
+      const storedTheme = localStorage.getItem(storageKey) || localStorage.getItem(legacyStorageKey);
+      if (!localStorage.getItem(storageKey) && (storedTheme === "light" || storedTheme === "dark")) {
+        localStorage.setItem(storageKey, storedTheme);
+        localStorage.removeItem(legacyStorageKey);
+      }
+      if (storedTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    })();
+  </script>
+
+  <script type="module">
+    import { wireUpTopicPage } from "./page.js";
+
+    wireUpTopicPage();
+  </script>
+
+  <link href="style.css" rel="stylesheet" />
+
+  <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0c50ed3b94a1468199725e8c5d6df7ef"}'></script><!-- End Cloudflare Web Analytics -->
+</head>
+
+<body>
+  <header class="site-header">
+    <div class="top-header-shell">
+      <div class="brand-cluster">
+        <a class="site-brand" href="./">
+          <span aria-hidden="true" class="site-brand-logo">
+            <img
+              alt=""
+              class="site-brand-logo-image site-brand-logo-light"
+              height="56"
+              src="assets/fastnear_logo_black.png"
+              width="259"
+            />
+            <img
+              alt=""
+              class="site-brand-logo-image site-brand-logo-dark"
+              height="56"
+              src="assets/fastnear_logo_white.png"
+              width="259"
+            />
+          </span>
+          <span class="site-brand-copy">
+            <span class="site-brand-title">FastNear JS</span>
+            <span class="site-brand-subtitle">Agent-first NEAR RPC/API lib</span>
+          </span>
+        </a>
+      </div>
+
+      <div class="header-controls">
+        <button
+          aria-label="Toggle theme"
+          class="theme-toggle"
+          data-theme-toggle="true"
+          title="Switch to dark mode"
+          type="button"
+        ></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="section-shell" id="overview">
+      <div class="section-header">
+        <div class="section-kicker">Resilience</div>
+        <h2 class="section-title">Retries and bulk reads, on by default.</h2>
+        <p class="section-summary">
+          <code>@fastnear/api</code> retries transient RPC failures — HTTP 408/429/500/502/503/504 and
+          JSON-RPC <code>-429</code>/<code>-32000</code> — with full-jitter exponential backoff, and
+          exposes an explicit bulk read API with a concurrency cap. Both behaviors are on by default and
+          configurable through <code>near.config</code>, so a rate-limited or briefly unhealthy endpoint
+          degrades into slower answers instead of thrown errors.
+        </p>
+      </div>
+
+      <div class="console-card-grid">
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Tune both knobs</div>
+              <p class="code-card-context">
+                The documented defaults, written out. You only need <code>near.config</code> to change
+                them — omitting this block entirely gives the same behavior.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="retry-config-snippet">near.config({
+  retry: {
+    enabled: true,           // false restores single-attempt behavior
+    maxAttempts: 5,          // total attempts including the first
+    baseBackoffMs: 250,      // full-jitter exponential backoff bounds
+    maxBackoffMs: 30000,
+    timeoutMs: 15000,        // per-attempt AbortController timeout (0 disables it)
+    respectRetryAfter: true, // honor a Retry-After header, capped at maxBackoffMs
+    writePolicy: "transport-only",
+  },
+  batch: {
+    maxConcurrency: 30,      // in-flight cap for near.batch / near.view.many
+  },
+});</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#retry-config-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-kicker">How writes retry</div>
+          <ul class="hero-points">
+            <li>
+              <code>writePolicy</code> controls how writes (<code>send_tx</code> /
+              <code>broadcast_tx_*</code>) retry; reads always follow the full retry policy.
+            </li>
+            <li>
+              <code>"transport-only"</code> (the default) retries only pre-response transport and
+              timeout errors, resending identical signed bytes — safe against double-apply.
+            </li>
+            <li>
+              <code>"never"</code> turns write retries off entirely; <code>"all"</code> retries every
+              retryable failure, including after an HTTP response was received.
+            </li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-shell" id="bulk-reads">
+      <div class="section-header">
+        <div class="section-kicker">Bulk reads</div>
+        <h2 class="section-title">Fan out many reads, get settled results back.</h2>
+        <p class="section-summary">
+          NEAR RPC has no array batching, so calls are not merged into one request —
+          <code>near.batch</code> and <code>near.view.many</code> run a concurrency-limited fan-out
+          where each item is its own retried call, at most <code>batch.maxConcurrency</code> (default
+          30) in flight. Both return <strong>settled</strong> results in input order: one failing call
+          never rejects the set.
+        </p>
+      </div>
+
+      <div class="console-card-grid">
+        <article class="card">
+          <div class="card-kicker">The two entrypoints</div>
+          <ul class="hero-points">
+            <li>
+              <code>near.batch(requests)</code> — each <code>{ method, params, useArchival?, network? }</code>
+              runs as its own retried call. Write methods are rejected per-item.
+            </li>
+            <li>
+              <code>near.view.many(specs)</code> — the same fan-out for
+              <code>{ contractId, methodName, args?, argsBase64?, blockId? }</code> view specs, decoding
+              each ok result like <code>near.view</code>.
+            </li>
+          </ul>
+        </article>
+
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Settled results</div>
+              <p class="code-card-context">
+                Check <code>status</code> per item; application failures stay distinguishable from
+                infrastructure ones without re-parsing.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="bulk-read-snippet">const results = await near.view.many([
+  { contractId: "token.near", methodName: "ft_balance_of", args: { account_id: "a.near" } },
+  { contractId: "token.near", methodName: "ft_balance_of", args: { account_id: "b.near" } },
+]);
+
+for (const r of results) {
+  if (r.status === "ok") near.print(r.result);
+  else if (r.kind === "contract") console.warn("contract reverted:", r.error);
+  else console.warn("infra error:", r.kind, r.error);
+}</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#bulk-read-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-kicker">Error kinds</div>
+          <ul class="hero-points">
+            <li><code>"contract"</code> — the contract method reverted or failed: an application failure, not an infrastructure one.</li>
+            <li><code>"transport"</code> — no HTTP response: network problem or timeout.</li>
+            <li><code>"http"</code> — a non-2xx HTTP response.</li>
+            <li><code>"rpc"</code> — a JSON-RPC-level error.</li>
+            <li>
+              Thrown errors are <code>FastNearRpcError</code> instances exposing the same
+              <code>kind</code>, plus <code>status</code>, <code>code</code>, <code>data</code>, and
+              <code>retryable</code>.
+            </li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="callout callout-info callout-compact">
+        <span class="callout-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg></span>
+        <div class="callout-copy">
+          <strong class="callout-title">Go deeper</strong>
+          <p class="callout-body">
+            AI agents: the "Resilience and bulk reads" section of
+            <a class="jump-link" href="./llms-full.txt" rel="noopener noreferrer" target="_blank">llms-full.txt</a>
+            carries this page in copy-paste form, and
+            <a class="jump-link" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>
+            is the structured catalog behind it. Rate-limited? Free trial credits are available at
+            <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://dashboard.fastnear.com" rel="noopener noreferrer" target="_blank">dashboard.fastnear.com</a>
+            — set <code>near.config({ apiKey })</code> once you have one.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-nav">
+      <nav aria-label="FastNear topic pages" class="footer-nav-group">
+        <span class="nav-label">Topics</span>
+        <a class="nav-link jump-link" href="./x402.html">x402 payments</a>
+        <a class="nav-link jump-link" href="./post-quantum.html">Post-quantum keys</a>
+        <a class="nav-link jump-link" href="./retries.html">Retries &amp; bulk reads</a>
+      </nav>
+
+      <nav aria-label="FastNear docs" class="footer-nav-group">
+        <span class="nav-label">Docs</span>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/rpc" rel="noopener noreferrer" target="_blank">RPC</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/api" rel="noopener noreferrer" target="_blank">API</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/tx" rel="noopener noreferrer" target="_blank">Transactions</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/transfers" rel="noopener noreferrer" target="_blank">Transfers</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/neardata" rel="noopener noreferrer" target="_blank">NEAR Data</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/fastdata/kv" rel="noopener noreferrer" target="_blank">FastData KV</a>
+      </nav>
+
+      <nav aria-label="FastNear resources" class="footer-nav-group">
+        <span class="nav-label">Resources</span>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/agents" rel="noopener noreferrer" target="_blank">Agents</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/auth" rel="noopener noreferrer" target="_blank">Auth</a>
+        <a class="nav-link jump-link" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>
+        <a class="nav-link jump-link" href="./agents.js" rel="noopener noreferrer" target="_blank">agents.js</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://www.npmjs.com/package/@fastnear/api" rel="noopener noreferrer" target="_blank">npm</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://github.com/fastnear/js-monorepo" rel="noopener noreferrer" target="_blank">GitHub</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://dashboard.fastnear.com" rel="noopener noreferrer" target="_blank">FastNear Dashboard</a>
+      </nav>
+    </div>
+    <div class="footer-shell">
+      <span>FastNear JS for agents and developers</span>
+      <span>Powered by generated tasks from the FastNear JS monorepo</span>
+    </div>
+  </footer>
+</body>
+</html>
