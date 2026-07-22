@@ -90,8 +90,9 @@
         <div class="section-kicker">Resilience</div>
         <h2 class="section-title">Retries and bulk reads, on by default.</h2>
         <p class="section-summary">
-          <code>@fastnear/api</code> retries transient RPC failures — HTTP 408/429/500/502/503/504 and
-          JSON-RPC <code>-429</code>/<code>-32000</code> — with full-jitter exponential backoff, and
+          <code>@fastnear/api</code> retries transient RPC failures — HTTP 408/429 and any 5xx, plus
+          JSON-RPC <code>-429</code>/<code>-32000</code> (except deterministic handler errors like
+          <code>UNKNOWN_ACCOUNT</code>, which fail fast) — with full-jitter exponential backoff, and
           exposes an explicit bulk read API with a concurrency cap. Both behaviors are on by default and
           configurable through <code>near.config</code>, so a rate-limited or briefly unhealthy endpoint
           degrades into slower answers instead of thrown errors.
@@ -192,8 +193,8 @@
           </div>
           <div class="code-block">
             <pre class="code-card-body"><code id="bulk-read-snippet">const results = await near.view.many([
-  { contractId: "token.near", methodName: "ft_balance_of", args: { account_id: "a.near" } },
-  { contractId: "token.near", methodName: "ft_balance_of", args: { account_id: "b.near" } },
+  { contractId: "wrap.near", methodName: "ft_balance_of", args: { account_id: "aurora" } },
+  { contractId: "wrap.near", methodName: "ft_balance_of", args: { account_id: "intents.near" } },
 ]);
 
 for (const r of results) {
@@ -215,6 +216,7 @@ for (const r of results) {
             <li><code>"transport"</code> — no HTTP response: network problem or timeout.</li>
             <li><code>"http"</code> — a non-2xx HTTP response.</li>
             <li><code>"rpc"</code> — a JSON-RPC-level error.</li>
+            <li><code>"unknown"</code> — a non-RPC failure, e.g. a write method rejected per-item inside <code>near.batch</code>.</li>
             <li>
               Thrown errors are <code>FastNearRpcError</code> instances exposing the same
               <code>kind</code>, plus <code>status</code>, <code>code</code>, <code>data</code>, and

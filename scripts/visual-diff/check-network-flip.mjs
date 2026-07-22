@@ -49,7 +49,7 @@ async function waitForReload(page, action) {
   const page = await ctx.newPage();
   const pageErrors = [];
   page.on("pageerror", (e) => pageErrors.push(`pageerror: ${e.message}`));
-  page.on("console", (m) => { if (m.type() === "error") pageErrors.push(`console.error: ${m.text()}`); });
+  page.on("console", (m) => { if (m.type() !== "error" || (m.location()?.url || "").includes("cloudflareinsights.com")) return; pageErrors.push(`console.error: ${m.text()}`); });
 
   const failures = [];
 

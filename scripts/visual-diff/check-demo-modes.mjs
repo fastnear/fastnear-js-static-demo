@@ -22,7 +22,8 @@ async function runMode(browser, theme, label, setup) {
   const page = await ctx.newPage();
   const consoleErrors = [];
   page.on("pageerror", (e) => consoleErrors.push(`pageerror: ${e.message}`));
-  page.on("console", (m) => { if (m.type() === "error") consoleErrors.push(`console.error: ${m.text()}`); });
+  // cloudflareinsights = analytics beacon, commonly blocked locally — not a page error.
+  page.on("console", (m) => { if (m.type() !== "error" || (m.location()?.url || "").includes("cloudflareinsights.com")) return; consoleErrors.push(`console.error: ${m.text()}`); });
 
   await page.goto(URL, { waitUntil: "domcontentloaded" });
   try { await page.waitForLoadState("networkidle", { timeout: 15000 }); } catch {}

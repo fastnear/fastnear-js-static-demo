@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-A minimal static HTML demo of the `@fastnear/api` and `@fastnear/wallet` packages. The mainnet demo card targets two contracts in tandem: **Buy 25 🥑** writes to `berryclub.ek.near` (the original 50×50 board), and **Draw Random Green Pixel** writes to `berryfast.near` (the larger collaborative canvas behind `https://berry.fast`, which is also the board rendered in the live preview).
+A minimal static HTML demo of the `@fastnear/api` and `@fastnear/wallet` packages. The mainnet demo card targets two contracts in tandem: **Buy 2.5 🥑** writes to `berryclub.ek.near` (the original 50×50 board; the contract sells 250 🥑 per NEAR, so the 0.01 NEAR deposit buys 2.5), and **Draw Random Green Pixel** writes to `berryfast.near` (the larger collaborative canvas behind `https://berry.fast`, which is also the board rendered in the live preview).
 
 Serves as the primary test fixture for the `@fastnear/wallet` multi-wallet connector's session persistence, sign-in, and transaction flows.
 
@@ -106,7 +106,7 @@ monorepo's `recipes/source.mjs` (rendered into hosted `llms.txt`).
 
 Local manifest listing 7 wallets: MyNearWallet, Intear Wallet, Meteor Wallet, OKX Wallet, NEAR Mobile, Nightly Wallet, and Wallet Connect. Each entry specifies an `executor` URL (JS loaded into a sandboxed `about:srcdoc` iframe by near-connect) and `permissions`.
 
-Executor URLs point to `https://raw.githubusercontent.com/fastnear/near-connect/refs/heads/main/repository/<wallet>.js` — they track the `main` branch and update automatically when the built files are pushed.
+Five of the seven executor URLs point to `https://raw.githubusercontent.com/fastnear/near-connect/refs/heads/main/repository/<wallet>.js` — they track the `main` branch and update automatically when the built files are pushed. Intear (`wallet.intear.tech/near-selector.js`) and Meteor (`raw.githubusercontent.com/Meteor-Wallet/meteor_wallet_sdk/data-storage/...`) host their own executors on infrastructure we don't control; if either host breaks, sign-in via that wallet breaks with no change visible in this repo.
 
 ### WalletConnect
 
@@ -120,7 +120,7 @@ The demo asks the wallet for **one** FCK at sign-in, scoped to the
 contract whose action the demo most wants to be silent:
 
 - **Mainnet:** FCK on `berryfast.near` so "Draw Random Green Pixel"
-  (zero-deposit `draw`) signs silently. Buy 25 🥑 (0.01 NEAR deposit)
+  (zero-deposit `draw`) signs silently. Buy 2.5 🥑 (0.01 NEAR deposit)
   always pops the wallet regardless of FCK — FCKs only sign
   zero-deposit calls — so an FCK on `berryclub.ek.near` would have
   added no value.

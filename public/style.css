@@ -1314,7 +1314,9 @@ body.is-signed-in .hero-shell { order: 2; }
 }
 
 .recipe-grid {
-    grid-template-columns: 1fr;
+    /* minmax(0, …) so wide code cards can't stretch the track past the
+       viewport on narrow screens (1fr alone has an auto minimum). */
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .demo-grid {

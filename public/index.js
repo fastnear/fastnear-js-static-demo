@@ -238,7 +238,7 @@ const walletConnect = { projectId: "4b2c7201ce4c03e0fb59895a2c251110" };
 
 // FunctionCall access key target at sign-in. On mainnet we want the FCK
 // scoped to berryfast.near so "Draw Random Green Pixel" (zero-deposit
-// draw on berryfast.near) signs silently — Buy 25 🥑 on
+// draw on berryfast.near) signs silently — Buy 2.5 🥑 on
 // berryclub.ek.near has a 0.01 NEAR deposit and would pop the wallet
 // regardless of FCK, so a berryclub-scoped FCK adds no value. On
 // testnet the target stays count.mike.testnet (the only contract the
@@ -271,7 +271,7 @@ const demoConfigs = {
     cardKicker: "Wallet-backed example",
     cardTitle: "Draw or buy tokens",
     cardNote:
-      "Buy 25 🥑 spends 0.01 NEAR on berryclub.ek.near. Draw paints a random green pixel onto berryfast.near (the visible board) just below the three faces.",
+      "Buy 2.5 🥑 spends 0.01 NEAR on berryclub.ek.near (the contract sells 250 🥑 per NEAR). Draw paints a random green pixel onto berryfast.near (the visible board) just below the three faces.",
     signinTitle: "Sign in to draw or buy 🥑",
     signinNoteHtml:
       "Connect any wallet to try <code>draw</code> on <code>berryfast.near</code> (the visible board) and <code>buy_tokens</code> on <code>berryclub.ek.near</code> — all from the browser.",
@@ -298,7 +298,7 @@ const demoConfigs = {
       },
     },
     secondaryAction: {
-      label: "Buy 25 🥑",
+      label: "Buy 2.5 🥑",
       methodName: "buy_tokens",
       gas: "100 Tgas",
       deposit: "0.01 NEAR",
@@ -1308,7 +1308,10 @@ export function wireUpAppLate() {
       if (signInButton) {
         event.preventDefault();
         event.stopPropagation();
-        setScopedContractId(currentContractId);
+        // Record the contract the FCK is actually requested on
+        // (walletOptions.contractId), not the page's current target —
+        // on mainnet those differ (berryfast.near vs berryclub.ek.near).
+        setScopedContractId(signInFckContractFor(currentNetwork));
         await nearWallet.connect(walletOptions);
         updateUI();
         return;
@@ -1318,7 +1321,7 @@ export function wireUpAppLate() {
       if (recipeConnectButton) {
         event.preventDefault();
         event.stopPropagation();
-        setScopedContractId(currentContractId);
+        setScopedContractId(signInFckContractFor(currentNetwork));
         await nearWallet.connect(walletOptions);
         return;
       }
@@ -2017,7 +2020,7 @@ export function wireUpAppLate() {
       if (result.network) near.state.setActiveNetwork(result.network);
     }
     if (!scopedContractId) {
-      setScopedContractId(currentContractId);
+      setScopedContractId(signInFckContractFor(currentNetwork));
     }
     updateUI();
   });

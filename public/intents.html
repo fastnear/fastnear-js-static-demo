@@ -183,7 +183,8 @@
         <h2 class="section-title">NEP-413 under the hood — and the one encoding gotcha.</h2>
         <p class="section-summary">
           The signed digest is <code>sha256( borsh(u32 2<sup>31</sup>+413) ‖ borsh({ message, nonce[32],
-          recipient, callbackUrl? }) )</code>, signed by a <strong>full-access</strong> ed25519 key.
+          recipient, callbackUrl? }) )</code>, signed by a <strong>full-access</strong> key
+          (ed25519 for nearly all NEAR accounts; secp256k1 also works).
           For intents, <code>message</code> is the JSON intent body
           (<code>{ signer_id, deadline, intents: [...] }</code>), <code>recipient</code> is
           <code>intents.near</code>, and the 32-byte <code>nonce</code> is the verifier's replay
@@ -202,7 +203,8 @@
             </li>
             <li>
               <strong>Re-encode the signature.</strong> Wallets return NEP-413 signatures as base64;
-              the verifier wants <code>ed25519:&lt;base58&gt;</code>. The signers in
+              the verifier wants a curve-prefixed base58 string — <code>ed25519:&lt;base58&gt;</code>,
+              or <code>secp256k1:&lt;base58&gt;</code> for 65-byte signatures. The signers in
               <code>@fastnear/intents</code> own that conversion — skipping it is the most common
               integration bug.
             </li>

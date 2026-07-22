@@ -82,13 +82,28 @@ function setupCodeCardButtons() {
     if (copyBtn) {
       const targetSel = copyBtn.getAttribute("data-clipboard-target");
       const text = document.querySelector(targetSel)?.textContent ?? "";
-      navigator.clipboard.writeText(text).then(() => {
+      const showCopied = () => {
         copyBtn.classList.add("is-copied");
         copyBtn.setAttribute("aria-label", "Copied");
         window.setTimeout(() => {
           copyBtn.classList.remove("is-copied");
           copyBtn.setAttribute("aria-label", "Copy code to clipboard");
         }, 1100);
+      };
+      navigator.clipboard.writeText(text).then(showCopied).catch(() => {
+        // Clipboard API can reject (permissions, unfocused document) —
+        // fall back to a selection-based copy so the button still works.
+        const scratch = document.createElement("textarea");
+        scratch.value = text;
+        scratch.setAttribute("readonly", "");
+        scratch.style.position = "fixed";
+        scratch.style.opacity = "0";
+        document.body.appendChild(scratch);
+        scratch.select();
+        let copied = false;
+        try { copied = document.execCommand("copy"); } catch {}
+        scratch.remove();
+        if (copied) showCopied();
       });
       return;
     }
