@@ -88,6 +88,20 @@ unreachable. See the README for the exact incantation.
 - **View calls** (no auth): `near.view({ contractId, methodName, args })` — reads board lines, token balances
 - **Transactions** (auth required): `nearWallet.sendTransaction({ receiverId, actions })` — draw pixels, buy tokens
 
+### Topic pages (static explainers)
+
+`intents.html`, `x402.html`, `post-quantum.html`, and `retries.html` are
+standalone static explainers for humans and AI agents. They do NOT load
+`index.js` (the demo-app module); their only script is `page.js`
+(`wireUpTopicPage()`: theme toggle sharing the same `theme` localStorage
+key as the main page, plus code-card copy/wrap buttons). Content stays
+verbatim-close to the generated catalog (`recipes.json` quickstarts) so
+pages and agent artifacts never drift — when a quickstart changes in the
+monorepo, re-sync and update the matching code card. Cloudflare Pages
+serves them at clean URLs (`/intents` etc., 308 from the `.html` form).
+Each page is advertised to agents via `supportSurface.hostedPages` in the
+monorepo's `recipes/source.mjs` (rendered into hosted `llms.txt`).
+
 ### Wallet Manifest (`manifest.json`)
 
 Local manifest listing 7 wallets: MyNearWallet, Intear Wallet, Meteor Wallet, OKX Wallet, NEAR Mobile, Nightly Wallet, and Wallet Connect. Each entry specifies an `executor` URL (JS loaded into a sandboxed `about:srcdoc` iframe by near-connect) and `permissions`.
@@ -120,11 +134,11 @@ the private key in the sandboxed iframe's localStorage as
 `functionCallKey`, and MNW signs an on-chain `AddKey` redirect. On
 sign-out, MNW collects every key it knows about (the legacy
 `functionCallKey` plus any `functionCallKey:<contractId>` entries) and
-bundles all DeleteKey actions into one popup-confirmed tx — see
-`@fastnear/near-connect@0.12.2`.
+bundles all DeleteKey actions into one popup-confirmed tx (see the
+`@fastnear/near-connect` MNW executor).
 
 The wallet also exports `nearWallet.addFunctionCallKey({ contractId, methodNames, ... })`
-(`@fastnear/wallet@1.1.4+`) for cases that need an additional FCK on a
+for cases that need an additional FCK on a
 second contract after sign-in. This demo doesn't use it — one FCK is
 enough.
 
@@ -138,8 +152,16 @@ These are configured in the near-connect MNW executor (`near-wallets/src/mnw.ts`
 
 ## Dependencies
 
-- **`@fastnear/api`** (`^1.1.4`) — NEAR blockchain API, loaded as IIFE global (`window.near`)
-- **`@fastnear/wallet`** (`^1.1.4`) — Multi-wallet connector, loaded as IIFE global (`window.nearWallet`); wraps `@fastnear/near-connect` (`^0.12.2`)
+All `@fastnear/*` packages version in lockstep (currently `1.6.0`; bump is one
+command in the monorepo: `yarn workspaces foreach --all version X.Y.Z`).
+
+- **`@fastnear/api`** — NEAR blockchain API, loaded as IIFE global (`window.near`)
+- **`@fastnear/wallet`** — Multi-wallet connector, loaded as IIFE global (`window.nearWallet`); wraps `@fastnear/near-connect`
+- **`@fastnear/intents`** (referenced by the intents topic page, not loaded by the demo) — NEAR Intents: 1Click swaps, NEP-413 intent signing, verifier helpers; IIFE global `window.nearIntents` via `/intents.js`
+- **`@fastnear/x402`**, **`@fastnear/ml-dsa-65`** — opt-in packages referenced by their topic pages
+
+`public/_redirects` maps hosted aliases (`/near.js`, `/wallet.js`, `/intents.js`,
+`/x402.js`, …) to unpkg package paths — new packages get a redirect block there.
 
 Loaded via bare unpkg URLs (no pinned version), e.g. `https://unpkg.com/@fastnear/wallet/dist/umd/browser.global.js` (the `umd` directory in the published package holds an IIFE-format bundle — directory naming is legacy, format is IIFE per `tsup.config.ts`). These resolve to `latest` on npm. To cache-bust after publishing, hard-refresh the page (`Cmd+Shift+R`) and verify the version at `https://unpkg.com/@fastnear/wallet/package.json`.
 
