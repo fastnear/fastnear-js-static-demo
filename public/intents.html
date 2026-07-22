@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta content="width=device-width,initial-scale=1.0" name="viewport" />
+  <title>NEAR Intents — FastNear JS</title>
+  <meta
+    content="Swap across 30+ chains with NEAR Intents using @fastnear/intents: 1Click quotes, NEP-413 intent signing with a wallet or a raw key, and deposits, balances, and withdrawals on the intents.near verifier."
+    name="description"
+  />
+  <link href="assets/favicon.png" rel="icon" type="image/png" />
+  <link href="https://fonts.googleapis.com" rel="preconnect" />
+  <link crossorigin href="https://fonts.gstatic.com" rel="preconnect" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+
+  <script>
+    (() => {
+      const storageKey = "theme";
+      const legacyStorageKey = "fastnear:theme";
+      const storedTheme = localStorage.getItem(storageKey) || localStorage.getItem(legacyStorageKey);
+      if (!localStorage.getItem(storageKey) && (storedTheme === "light" || storedTheme === "dark")) {
+        localStorage.setItem(storageKey, storedTheme);
+        localStorage.removeItem(legacyStorageKey);
+      }
+      if (storedTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    })();
+  </script>
+
+  <script type="module">
+    import { wireUpTopicPage } from "./page.js";
+
+    wireUpTopicPage();
+  </script>
+
+  <link href="style.css" rel="stylesheet" />
+
+  <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0c50ed3b94a1468199725e8c5d6df7ef"}'></script><!-- End Cloudflare Web Analytics -->
+</head>
+
+<body>
+  <header class="site-header">
+    <div class="top-header-shell">
+      <div class="brand-cluster">
+        <a class="site-brand" href="./">
+          <span aria-hidden="true" class="site-brand-logo">
+            <img
+              alt=""
+              class="site-brand-logo-image site-brand-logo-light"
+              height="56"
+              src="assets/fastnear_logo_black.png"
+              width="259"
+            />
+            <img
+              alt=""
+              class="site-brand-logo-image site-brand-logo-dark"
+              height="56"
+              src="assets/fastnear_logo_white.png"
+              width="259"
+            />
+          </span>
+          <span class="site-brand-copy">
+            <span class="site-brand-title">FastNear JS</span>
+            <span class="site-brand-subtitle">Agent-first NEAR RPC/API lib</span>
+          </span>
+        </a>
+      </div>
+
+      <div class="header-controls">
+        <button
+          aria-label="Toggle theme"
+          class="theme-toggle"
+          data-theme-toggle="true"
+          title="Switch to dark mode"
+          type="button"
+        ></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="section-shell" id="overview">
+      <div class="section-header">
+        <div class="section-kicker">Multichain swaps <span class="badge-pill badge-pill-subtle">New</span></div>
+        <h2 class="section-title">Swap anything, anywhere, with NEAR Intents.</h2>
+        <p class="section-summary">
+          NEAR Intents inverts how trading works: instead of scripting an execution path ("bridge X,
+          then swap on Y"), you sign a declarative statement of the outcome you want, and a competitive
+          network of off-chain <strong>solvers</strong> races to fulfill it. Settlement is anchored in
+          one contract on NEAR — the verifier at <code>intents.near</code> — which holds every
+          participating asset as a NEP-245 multi-token balance and applies each matched trade
+          atomically: the whole bundle settles, or nothing does. <code>@fastnear/intents</code> makes
+          the protocol usable from the browser (IIFE global <code>nearIntents</code>), Node.js, and AI
+          agents.
+        </p>
+      </div>
+
+      <div class="console-card-grid">
+        <article class="card">
+          <div class="card-kicker">Canonical facts</div>
+          <ul class="hero-points">
+            <li>
+              Verifier: <code>intents.near</code> on NEAR mainnet (there is no public testnet
+              deployment). Internal ledger token ids look like <code>nep141:wrap.near</code> or
+              <code>nep141:eth-0xdac…ec7.omft.near</code> for bridged assets.
+            </li>
+            <li>
+              30+ chains via three bridge routes (PoA, Omni, HOT) — Bitcoin, Ethereum and its L2s,
+              Solana, TON, Tron, XRP, Stellar, and more — all settling through the same NEAR contract.
+            </li>
+            <li>
+              Signing standards: <strong>NEP-413</strong> for NEAR wallets and raw keys, plus
+              <code>erc191</code> (EVM), <code>raw_ed25519</code> (Solana), <code>tip191</code>,
+              <code>webauthn</code>, <code>ton_connect</code>, and <code>sep53</code> — accounts from
+              other ecosystems trade without holding NEAR.
+            </li>
+            <li>
+              Two integration surfaces: the hosted <strong>1Click API</strong>
+              (<code>1click.chaindefuser.com</code>) that wraps quoting, bridging, and settlement
+              behind a deposit address, and the <strong>solver relay</strong> for direct flows.
+            </li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-shell" id="flow">
+      <div class="section-header">
+        <div class="section-kicker">How a swap flows</div>
+        <h2 class="section-title">Quote, fund, sign, settle — most of it is one REST API.</h2>
+        <p class="section-summary">
+          Each step is a REST call, an on-chain transaction, or an off-chain signature — never a
+          bespoke bridge script.
+        </p>
+      </div>
+
+      <div class="docs-grid">
+        <article class="card">
+          <div class="card-kicker">1 · Discover &amp; quote <span class="badge-pill badge-pill-subtle">REST</span></div>
+          <p class="card-summary">
+            <code>GET /v0/tokens</code> lists every swappable asset. <code>POST /v0/quote</code> with
+            <code>dry: true</code> previews real pricing for free; <code>dry: false</code> commits and
+            returns a unique <code>depositAddress</code>.
+          </p>
+        </article>
+        <article class="card">
+          <div class="card-kicker">2 · Fund <span class="badge-pill badge-pill-subtle">on-chain</span></div>
+          <p class="card-summary">
+            Send the input tokens to the deposit address on the origin chain — a plain transfer.
+            Funds already inside <code>intents.near</code> skip this: sign a server-generated intent
+            instead (<code>generate-intent</code> → <code>submit-intent</code>).
+          </p>
+        </article>
+        <article class="card">
+          <div class="card-kicker">3 · Sign <span class="badge-pill badge-pill-subtle">off-chain</span></div>
+          <p class="card-summary">
+            Intents are authorized by a NEP-413 signed message — no gas, no transaction. Solvers
+            co-sign the mirror <code>token_diff</code>; the verifier requires all diffs to net to
+            zero per token.
+          </p>
+        </article>
+        <article class="card">
+          <div class="card-kicker">4 · Settle &amp; track <span class="badge-pill badge-pill-subtle">REST</span></div>
+          <p class="card-summary">
+            The relay submits one <code>execute_intents</code> transaction; output is delivered to
+            your recipient (withdrawing cross-chain via the bridges). Poll
+            <code>GET /v0/status</code> to <code>SUCCESS</code>, <code>REFUNDED</code>, or
+            <code>FAILED</code> — failures auto-refund.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-shell" id="signing">
+      <div class="section-header">
+        <div class="section-kicker">Signing, exactly</div>
+        <h2 class="section-title">NEP-413 under the hood — and the one encoding gotcha.</h2>
+        <p class="section-summary">
+          The signed digest is <code>sha256( borsh(u32 2<sup>31</sup>+413) ‖ borsh({ message, nonce[32],
+          recipient, callbackUrl? }) )</code>, signed by a <strong>full-access</strong> ed25519 key.
+          For intents, <code>message</code> is the JSON intent body
+          (<code>{ signer_id, deadline, intents: [...] }</code>), <code>recipient</code> is
+          <code>intents.near</code>, and the 32-byte <code>nonce</code> is the verifier's replay
+          nonce.
+        </p>
+      </div>
+
+      <div class="console-card-grid">
+        <article class="card">
+          <div class="card-kicker">Three rules that bite</div>
+          <ul class="hero-points">
+            <li>
+              <strong>Full-access keys only.</strong> NEP-413 forbids FunctionCall access keys — the
+              session keys this demo site uses for silent signing cannot authorize intents. Wallets
+              sign with the account's own key.
+            </li>
+            <li>
+              <strong>Re-encode the signature.</strong> Wallets return NEP-413 signatures as base64;
+              the verifier wants <code>ed25519:&lt;base58&gt;</code>. The signers in
+              <code>@fastnear/intents</code> own that conversion — skipping it is the most common
+              integration bug.
+            </li>
+            <li>
+              <strong>Zero-sum diffs.</strong> A <code>token_diff</code> lists per-token deltas
+              (negative = you pay). Your intent alone is unbalanced; the verifier executes it together
+              with a solver's mirror diff so every token nets to zero.
+            </li>
+          </ul>
+        </article>
+
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">The signed MultiPayload</div>
+              <p class="code-card-context">
+                What actually gets submitted — to 1Click, the solver relay, or
+                <code>intents.near</code> <code>execute_intents</code> directly.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="intents-payload-snippet">{
+  "standard": "nep413",
+  "payload": {
+    "message": "{\"signer_id\":\"alice.near\",\"deadline\":\"2026-08-01T00:00:00.000Z\",\"intents\":[{\"intent\":\"token_diff\",\"diff\":{\"nep141:usdc.near\":\"-1000000\",\"nep141:usdt.near\":\"1000000\"}}]}",
+    "nonce": "Vij2xgAlKBKzgNPJFViEQRgYyS7p2NEiYTTY4XmT8go=",
+    "recipient": "intents.near"
+  },
+  "public_key": "ed25519:C3jXhkGhEx88Gj7XKtUziJKXEBMRaJ67bWFkxJikVxZ2",
+  "signature": "ed25519:2ns3eCikZFxFA6e9ApunuDG4XwJUPrB8q82fYViBKjheqiDYcCmLN9RnB9NhoEvCdNoS3L3qYD9FAnKd7UkTnuij"
+}</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#intents-payload-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-shell" id="quickstarts">
+      <div class="section-header">
+        <div class="section-kicker">Quickstarts</div>
+        <h2 class="section-title">Quote in the browser console; swap from a wallet or an agent.</h2>
+        <p class="section-summary">
+          The full set — quote, wallet signing, Node agent swap, deposits and balances — lives in the
+          <code>intents</code> key of
+          <a class="jump-link" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>.
+          Dry quotes are free, keyless, and commitment-free.
+        </p>
+      </div>
+
+      <div class="console-card-grid">
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Quote a swap with live pricing</div>
+              <p class="code-card-context">
+                IIFE global from <code>intents.js</code>. Works unauthenticated — quotes then carry a
+                0.2% platform fee; a key from partners.near-intents.org waives it.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="intents-quote-snippet">&lt;script src="https://js.fastnear.com/intents.js"&gt;&lt;/script&gt;
+&lt;script type="module"&gt;
+  const oneClick = nearIntents.createOneClickClient();
+
+  const tokens = await oneClick.tokens();
+  const quote = await oneClick.quote({
+    dry: true, // free preview; dry:false commits and returns a depositAddress
+    swapType: "EXACT_INPUT",
+    slippageTolerance: 100, // bps
+    originAsset: "nep141:wrap.near",
+    destinationAsset:
+      "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1", // USDC on NEAR
+    amount: "1000000000000000000000000", // 1 wNEAR
+    depositType: "ORIGIN_CHAIN",
+    refundTo: "you.near",
+    refundType: "ORIGIN_CHAIN",
+    recipient: "you.near",
+    recipientType: "DESTINATION_CHAIN",
+    deadline: new Date(Date.now() + 10 * 60_000).toISOString(),
+  });
+
+  console.log(quote.quote.amountOutFormatted, "USDC for 1 wNEAR");
+&lt;/script&gt;</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#intents-quote-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Swap intents.near balances from Node.js</div>
+              <p class="code-card-context">
+                The INTENTS deposit type: 1Click builds the payload, the local signer signs it
+                verbatim — no deposit transaction needed. The key stays server-side.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="intents-node-snippet">import { createOneClickClient } from "@fastnear/intents";
+import { createLocalIntentSigner } from "@fastnear/intents/node";
+
+const { NEAR_ACCOUNT_ID, NEAR_PRIVATE_KEY } = process.env;
+const oneClick = createOneClickClient();
+const signer = createLocalIntentSigner({
+  accountId: NEAR_ACCOUNT_ID,
+  privateKey: NEAR_PRIVATE_KEY, // full-access, server-side only
+});
+
+// Quote with depositType/refundType/recipientType "INTENTS" — the input
+// funds already sit inside intents.near, so no deposit transaction is needed.
+const quote = await oneClick.quote({
+  dry: false,
+  swapType: "EXACT_INPUT",
+  slippageTolerance: 100,
+  originAsset: "nep141:wrap.near",
+  destinationAsset:
+    "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+  amount: "1000000000000000000000000",
+  depositType: "INTENTS",
+  refundTo: NEAR_ACCOUNT_ID,
+  refundType: "INTENTS",
+  recipient: NEAR_ACCOUNT_ID,
+  recipientType: "INTENTS",
+  deadline: new Date(Date.now() + 10 * 60_000).toISOString(),
+});
+const { intent } = await oneClick.generateIntent({
+  signerId: NEAR_ACCOUNT_ID,
+  depositAddress: quote.quote.depositAddress,
+});
+// signPayload pins the recipient to intents.near and signs verbatim.
+const signed = await signer.signPayload(intent);
+const { intentHash } = await oneClick.submitIntent({ signedData: signed });
+console.log(intentHash);</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#intents-node-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <div class="callout callout-info callout-compact">
+          <span class="callout-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg></span>
+          <div class="callout-copy">
+            <strong class="callout-title">Wallet path and relay status</strong>
+            <p class="callout-body">
+              Browser signing uses <code>createWalletIntentSigner({ wallet: nearWallet })</code> over
+              <code>nearWallet.signMessage</code> (NEP-413), which every wallet in the connector's
+              manifest implements. The solver relay
+              (<code>@fastnear/intents/relay</code>) is wired and typed, but its quotes require a
+              partner API key in practice — the 1Click path is the default. The funded end-to-end
+              swap path is verified against the mainnet smoke runbook
+              (<code>packages/intents/MAINNET_QA.md</code>) before being documented further.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-shell" id="guardrails">
+      <div class="section-header">
+        <div class="section-kicker">Guardrails</div>
+        <h2 class="section-title">Hard constraints and safe defaults.</h2>
+        <p class="section-summary">
+          These rules come from the machine-readable catalog — agents and humans should apply the
+          same ones.
+        </p>
+      </div>
+
+      <div class="docs-grid">
+        <article class="card">
+          <div class="card-kicker">Hard constraints</div>
+          <ul class="hero-points">
+            <li>The verifier is <code>intents.near</code> on NEAR mainnet; there is no public testnet deployment of the intents stack.</li>
+            <li>NEP-413 intent signatures require a full-access key, and the verifier checks the key is authorized for <code>signer_id</code>.</li>
+            <li>Submitted signatures use <code>ed25519:&lt;base58&gt;</code> encoding — not the base64 NEAR wallets return; the signers own that conversion.</li>
+            <li>Native NEAR is not a verifier asset: wrap to wNEAR before depositing, and exit native NEAR only via the <code>native_withdraw</code> intent.</li>
+            <li>Amounts are base-unit strings, and <code>token_diff</code> diffs must net to zero per token across the executed batch.</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <div class="card-kicker">Safe defaults</div>
+          <ul class="hero-points">
+            <li>Quote with <code>dry: true</code> first; commit with <code>dry: false</code> only when ready to fund the deposit address before it expires.</li>
+            <li>Keep local signer private keys in server-side secret storage, never browser code.</li>
+            <li>Use a partner API key from partners.near-intents.org to remove the 0.2% keyless platform fee.</li>
+            <li>Poll <code>/v0/status</code> to a terminal state (<code>SUCCESS</code>, <code>REFUNDED</code>, <code>FAILED</code>) and surface <code>swapDetails</code> on non-success.</li>
+            <li>Omit <code>msg</code> on <code>ft_withdraw</code> so failed withdrawals stay refundable.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="callout callout-info callout-compact">
+        <span class="callout-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg></span>
+        <div class="callout-copy">
+          <strong class="callout-title">Go deeper</strong>
+          <p class="callout-body">
+            AI agents: read the <code>intents</code> key in
+            <a class="jump-link" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>
+            and the NEAR Intents section of
+            <a class="jump-link" href="./llms.txt" rel="noopener noreferrer" target="_blank">llms.txt</a>
+            before editing an app. Humans: the package guide is the
+            <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://github.com/fastnear/js-monorepo/blob/main/packages/intents/README.md" rel="noopener noreferrer" target="_blank">@fastnear/intents README</a>,
+            the protocol docs live at
+            <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://docs.near-intents.org" rel="noopener noreferrer" target="_blank">docs.near-intents.org</a>,
+            and the verifier source is
+            <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://github.com/near/intents" rel="noopener noreferrer" target="_blank">near/intents</a>.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-nav">
+      <nav aria-label="FastNear topic pages" class="footer-nav-group">
+        <span class="nav-label">Topics</span>
+        <a class="nav-link jump-link" href="./intents.html">NEAR Intents</a>
+        <a class="nav-link jump-link" href="./x402.html">x402 payments</a>
+        <a class="nav-link jump-link" href="./post-quantum.html">Post-quantum keys</a>
+        <a class="nav-link jump-link" href="./retries.html">Retries &amp; bulk reads</a>
+      </nav>
+
+      <nav aria-label="FastNear docs" class="footer-nav-group">
+        <span class="nav-label">Docs</span>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/rpc" rel="noopener noreferrer" target="_blank">RPC</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/api" rel="noopener noreferrer" target="_blank">API</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/tx" rel="noopener noreferrer" target="_blank">Transactions</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/transfers" rel="noopener noreferrer" target="_blank">Transfers</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/neardata" rel="noopener noreferrer" target="_blank">NEAR Data</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/fastdata/kv" rel="noopener noreferrer" target="_blank">FastData KV</a>
+      </nav>
+
+      <nav aria-label="FastNear resources" class="footer-nav-group">
+        <span class="nav-label">Resources</span>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/agents" rel="noopener noreferrer" target="_blank">Agents</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/auth" rel="noopener noreferrer" target="_blank">Auth</a>
+        <a class="nav-link jump-link" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>
+        <a class="nav-link jump-link" href="./agents.js" rel="noopener noreferrer" target="_blank">agents.js</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://www.npmjs.com/package/@fastnear/intents" rel="noopener noreferrer" target="_blank">npm</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://github.com/fastnear/js-monorepo" rel="noopener noreferrer" target="_blank">GitHub</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://dashboard.fastnear.com" rel="noopener noreferrer" target="_blank">FastNear Dashboard</a>
+      </nav>
+    </div>
+    <div class="footer-shell">
+      <span>FastNear JS for agents and developers</span>
+      <span>Powered by generated tasks from the FastNear JS monorepo</span>
+    </div>
+  </footer>
+</body>
+</html>
