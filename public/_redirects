@@ -60,6 +60,18 @@
 /x402-types.mjs  https://unpkg.com/@fastnear/x402/dist/esm/index.d.ts 301
 /x402-types.cjs  https://unpkg.com/@fastnear/x402/dist/cjs/index.d.cts 301
 
+# @fastnear/ml-dsa-65
+/ml-dsa-65.js         https://unpkg.com/@fastnear/ml-dsa-65/dist/umd/browser.global.js 301
+/ml-dsa-65-iife.js    https://unpkg.com/@fastnear/ml-dsa-65/dist/umd/browser.global.js 301
+/ml-dsa-65-umd.js     https://unpkg.com/@fastnear/ml-dsa-65/dist/umd/browser.global.js 301
+/ml-dsa-65-esm.js     https://unpkg.com/@fastnear/ml-dsa-65/dist/esm/index.js 301
+/ml-dsa-65-cjs.js     https://unpkg.com/@fastnear/ml-dsa-65/dist/cjs/index.cjs 301
+/ml-dsa-65.mjs        https://unpkg.com/@fastnear/ml-dsa-65/dist/esm/index.js 301
+/ml-dsa-65.cjs        https://unpkg.com/@fastnear/ml-dsa-65/dist/cjs/index.cjs 301
+/ml-dsa-65-types.js   https://unpkg.com/@fastnear/ml-dsa-65/dist/esm/index.d.ts 301
+/ml-dsa-65-types.mjs  https://unpkg.com/@fastnear/ml-dsa-65/dist/esm/index.d.ts 301
+/ml-dsa-65-types.cjs  https://unpkg.com/@fastnear/ml-dsa-65/dist/cjs/index.d.cts 301
+
 # @fastnear/near-connect
 /near-connect.js       https://unpkg.com/@fastnear/near-connect/cdn/hot-connect.iife.js 301
 /near-connect-iife.js  https://unpkg.com/@fastnear/near-connect/cdn/hot-connect.iife.js 301
