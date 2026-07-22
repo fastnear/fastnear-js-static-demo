@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta content="width=device-width,initial-scale=1.0" name="viewport" />
+  <title>Post-quantum ML-DSA-65 keys on NEAR — FastNear JS</title>
+  <meta
+    content="Sign NEAR transactions with post-quantum ML-DSA-65 (NIST FIPS 204) keys using the opt-in @fastnear/ml-dsa-65 package: enrollment from a classical key, the two on-chain key forms, wire sizes, and safety rules."
+    name="description"
+  />
+  <link href="assets/favicon.png" rel="icon" type="image/png" />
+  <link href="https://fonts.googleapis.com" rel="preconnect" />
+  <link crossorigin href="https://fonts.gstatic.com" rel="preconnect" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+
+  <script>
+    (() => {
+      const storageKey = "theme";
+      const legacyStorageKey = "fastnear:theme";
+      const storedTheme = localStorage.getItem(storageKey) || localStorage.getItem(legacyStorageKey);
+      if (!localStorage.getItem(storageKey) && (storedTheme === "light" || storedTheme === "dark")) {
+        localStorage.setItem(storageKey, storedTheme);
+        localStorage.removeItem(legacyStorageKey);
+      }
+      if (storedTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    })();
+  </script>
+
+  <script type="module">
+    import { wireUpTopicPage } from "./page.js";
+
+    wireUpTopicPage();
+  </script>
+
+  <link href="style.css" rel="stylesheet" />
+
+  <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0c50ed3b94a1468199725e8c5d6df7ef"}'></script><!-- End Cloudflare Web Analytics -->
+</head>
+
+<body>
+  <header class="site-header">
+    <div class="top-header-shell">
+      <div class="brand-cluster">
+        <a class="site-brand" href="./">
+          <span aria-hidden="true" class="site-brand-logo">
+            <img
+              alt=""
+              class="site-brand-logo-image site-brand-logo-light"
+              height="56"
+              src="assets/fastnear_logo_black.png"
+              width="259"
+            />
+            <img
+              alt=""
+              class="site-brand-logo-image site-brand-logo-dark"
+              height="56"
+              src="assets/fastnear_logo_white.png"
+              width="259"
+            />
+          </span>
+          <span class="site-brand-copy">
+            <span class="site-brand-title">FastNear JS</span>
+            <span class="site-brand-subtitle">Agent-first NEAR RPC/API lib</span>
+          </span>
+        </a>
+      </div>
+
+      <div class="header-controls">
+        <button
+          aria-label="Toggle theme"
+          class="theme-toggle"
+          data-theme-toggle="true"
+          title="Switch to dark mode"
+          type="button"
+        ></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="section-shell" id="overview">
+      <div class="section-header">
+        <div class="section-kicker">Post-quantum keys</div>
+        <h2 class="section-title">Sign NEAR transactions with post-quantum ML-DSA-65 keys.</h2>
+        <p class="section-summary">
+          A sufficiently large quantum computer would break the elliptic-curve signatures
+          (Ed25519, secp256k1) that protect blockchain accounts today. NEAR's answer is
+          <strong>ML-DSA-65</strong> — the NIST FIPS 204 lattice signature scheme also known as
+          Dilithium — added as an account access-key and transaction-signing type starting at
+          <strong>protocol version 85</strong>. FastNear ships it opt-in in the standalone
+          <code>@fastnear/ml-dsa-65</code> package (Node.js 20.19+ or a modern browser), so apps that
+          only use classical keys never download the post-quantum implementation.
+        </p>
+      </div>
+
+      <div class="docs-grid">
+        <article class="card">
+          <div class="card-kicker">How enrollment works</div>
+          <ul class="hero-points">
+            <li>
+              Generate an in-memory signer with <code>generateSigner()</code> — keys never touch disk
+              unless you export them, and <code>signer.destroy()</code> zeroizes package-owned buffers
+              when the lifecycle ends.
+            </li>
+            <li>
+              Enroll the signer's full public key with a classical full-access <code>AddKey</code> —
+              enrollment always starts from an existing classical signer.
+            </li>
+            <li>
+              Sign and submit through <code>sendTx({ signerId, signer, … })</code> in
+              <code>@fastnear/api</code>; the signer is bridged in via a structural
+              <code>TransactionSigner</code>, and <code>queryProtocolVersion()</code> gates on v85.
+            </li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <div class="card-kicker">Two key forms</div>
+          <ul class="hero-points">
+            <li>
+              Full form <code>ml-dsa-65:&lt;base58&gt;</code> — use it for AddKey, direct access-key
+              lookup, signing, and DeleteKey.
+            </li>
+            <li>
+              Compact handle <code>ml-dsa-65-hash:&lt;base58&gt;</code> — what NEAR stores on-chain and
+              what access-key <em>list</em> responses expose: the SHA3-256 digest of a domain tag
+              (<code>near:ml-dsa-65-pubkey-hash:v1</code>) followed by the raw public key.
+            </li>
+            <li>
+              Reconcile the two with <code>publicKeyToHandle()</code> before comparing against list
+              responses.
+            </li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <div class="card-kicker">Wire facts</div>
+          <ul class="hero-points">
+            <li>Seed: 32 bytes. Public key: <strong>1,952 bytes</strong>. Expanded secret key: 4,032 bytes. Signature: <strong>3,309 bytes</strong>.</li>
+            <li>NEAR charges <strong>100&nbsp;Ggas</strong> for each outer or delegated ML-DSA-65 signature verification, so transactions are substantially larger and costlier than classical equivalents.</li>
+            <li>Scope: account access keys and transaction signatures only — validator and staking keys remain Ed25519.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-shell" id="quickstarts">
+      <div class="section-header">
+        <div class="section-kicker">Quickstarts</div>
+        <h2 class="section-title">Generate a signer, then send with it.</h2>
+        <p class="section-summary">
+          The two core flows from the catalog (ESM). The full set — generate, explicit-send,
+          enroll-delete, reconcile — lives in the <code>mlDsa65</code> key of
+          <a class="jump-link" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>.
+        </p>
+      </div>
+
+      <div class="console-card-grid">
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Generate an in-memory signer</div>
+              <p class="code-card-context">
+                Retain only public recovery metadata, and always destroy the signer when its lifecycle
+                ends.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="pq-generate-snippet">import { generateSigner } from "@fastnear/ml-dsa-65";
+
+const signer = generateSigner();
+
+try {
+  // Public values are safe to retain for enrollment and cleanup.
+  const recovery = {
+    network: "testnet",
+    accountId: "device.testnet",
+    publicKey: signer.publicKey,
+    publicKeyHandle: signer.publicKeyHandle,
+  };
+
+  console.log(recovery);
+  // Never log or persist signer.exportSeed() or signer.exportSecretKey().
+} finally {
+  signer.destroy();
+}</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#pq-generate-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Send with an enrolled signer</div>
+              <p class="code-card-context">
+                The explicit-signer branch of <code>sendTx</code>, after the full public key has been
+                enrolled on the account with a classical full-access AddKey.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="pq-send-snippet">import {
+  actions,
+  queryProtocolVersion,
+  sendTx,
+} from "@fastnear/api";
+
+export async function sendOneYoctoWithMlDsa65({ accountId, signer }) {
+  const protocolVersion = await queryProtocolVersion({ network: "testnet" });
+  if (protocolVersion &lt; 85) {
+    throw new Error(`testnet protocol ${protocolVersion} does not support ML-DSA-65`);
+  }
+
+  return sendTx({
+    signerId: accountId,
+    signer,
+    receiverId: accountId,
+    actions: [actions.transfer("1")],
+    waitUntil: "FINAL",
+    network: "testnet",
+  });
+}</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#pq-send-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-shell" id="safety">
+      <div class="section-header">
+        <div class="section-kicker">Safety rules</div>
+        <h2 class="section-title">Treat key material and activation signals strictly.</h2>
+        <p class="section-summary">
+          These rules come from the machine-readable catalog — agents and humans should apply the same
+          ones.
+        </p>
+      </div>
+
+      <div class="docs-grid">
+        <article class="card">
+          <div class="card-kicker">Activation and lifecycle</div>
+          <ul class="hero-points">
+            <li>
+              Check the selected RPC's active <code>protocol_version</code> and require 85 or later
+              before adding or using an ML-DSA-65 key; do not use node software versions or
+              <code>latest_protocol_version</code> as activation signals.
+            </li>
+            <li>
+              Never print or persist generated seeds or expanded secret keys. Keep a temporary recovery
+              record public-only: network, account ID, full public key, and hash handle.
+            </li>
+            <li>
+              After an AddKey attempt, do not trust a single absence read: submit a finalized classical
+              DeleteKey nonce barrier, confirm absence at finality, and only then remove the record.
+            </li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <div class="card-kicker">Backend and runtime</div>
+          <ul class="hero-points">
+            <li>
+              The reference backend (<code>@noble/post-quantum</code>) describes itself as self-audited
+              and does not claim constant-time side-channel protection — prefer a native, WASM, HSM, or
+              hardware <code>TransactionSigner</code> when the threat model requires one.
+            </li>
+            <li>
+              <code>destroy()</code> provides best-effort zeroization of package-owned JavaScript
+              buffers, not a hard memory-erasure guarantee.
+            </li>
+            <li>
+              Constrained QuickJS and MCU runtimes are not a v1 compatibility target.
+            </li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="callout callout-info callout-compact">
+        <span class="callout-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg></span>
+        <div class="callout-copy">
+          <strong class="callout-title">Go deeper</strong>
+          <p class="callout-body">
+            AI agents: read the <code>mlDsa65</code> key in
+            <a class="jump-link" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>
+            — it carries all four quickstarts plus the sizes, key forms, and safety rules on this page.
+            The scheme is defined in
+            <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://csrc.nist.gov/pubs/fips/204/final" rel="noopener noreferrer" target="_blank">NIST FIPS 204</a>,
+            and the package lives on
+            <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://www.npmjs.com/package/@fastnear/ml-dsa-65" rel="noopener noreferrer" target="_blank">npm</a>.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-nav">
+      <nav aria-label="FastNear topic pages" class="footer-nav-group">
+        <span class="nav-label">Topics</span>
+        <a class="nav-link jump-link" href="./x402.html">x402 payments</a>
+        <a class="nav-link jump-link" href="./post-quantum.html">Post-quantum keys</a>
+        <a class="nav-link jump-link" href="./retries.html">Retries &amp; bulk reads</a>
+      </nav>
+
+      <nav aria-label="FastNear docs" class="footer-nav-group">
+        <span class="nav-label">Docs</span>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/rpc" rel="noopener noreferrer" target="_blank">RPC</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/api" rel="noopener noreferrer" target="_blank">API</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/tx" rel="noopener noreferrer" target="_blank">Transactions</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/transfers" rel="noopener noreferrer" target="_blank">Transfers</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/neardata" rel="noopener noreferrer" target="_blank">NEAR Data</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/fastdata/kv" rel="noopener noreferrer" target="_blank">FastData KV</a>
+      </nav>
+
+      <nav aria-label="FastNear resources" class="footer-nav-group">
+        <span class="nav-label">Resources</span>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/agents" rel="noopener noreferrer" target="_blank">Agents</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/auth" rel="noopener noreferrer" target="_blank">Auth</a>
+        <a class="nav-link jump-link" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>
+        <a class="nav-link jump-link" href="./agents.js" rel="noopener noreferrer" target="_blank">agents.js</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://www.npmjs.com/package/@fastnear/ml-dsa-65" rel="noopener noreferrer" target="_blank">npm</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://github.com/fastnear/js-monorepo" rel="noopener noreferrer" target="_blank">GitHub</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://dashboard.fastnear.com" rel="noopener noreferrer" target="_blank">FastNear Dashboard</a>
+      </nav>
+    </div>
+    <div class="footer-shell">
+      <span>FastNear JS for agents and developers</span>
+      <span>Powered by generated tasks from the FastNear JS monorepo</span>
+    </div>
+  </footer>
+</body>
+</html>
