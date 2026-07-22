@@ -152,8 +152,10 @@ These are configured in the near-connect MNW executor (`near-wallets/src/mnw.ts`
 
 ## Dependencies
 
-All `@fastnear/*` packages version in lockstep (currently `1.6.0`; bump is one
-command in the monorepo: `yarn workspaces foreach --all version X.Y.Z`).
+All `@fastnear/*` packages version in lockstep (currently `1.6.1`). Bump flow
+in the monorepo: set the root `package.json` version, then `yarn constraints
+--fix` propagates it to every workspace (`yarn.config.cjs`); commit the bump
+to main as the release commit and tag it.
 
 - **`@fastnear/api`** — NEAR blockchain API, loaded as IIFE global (`window.near`)
 - **`@fastnear/wallet`** — Multi-wallet connector, loaded as IIFE global (`window.nearWallet`); wraps `@fastnear/near-connect`
