@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta content="width=device-width,initial-scale=1.0" name="viewport" />
-  <title>Retries and bulk reads — FastNear JS</title>
+  <title>Constructing a transaction — FastNear JS</title>
   <meta
-    content="@fastnear/api retries transient RPC failures (429s and friends) with full-jitter backoff and exposes concurrency-capped bulk reads — near.batch and near.view.many return settled results with typed error kinds. Both are on by default and tuned through near.config."
+    content="Build a NEAR transaction with @fastnear/api and zero BigInt snags: actions with unit gas/deposit strings, preview with near.explain.tx, sign from a wallet or a local key. Wide integers are decimal strings — you never need BigInt."
     name="description"
   />
   <link href="assets/favicon.png" rel="icon" type="image/png" />
@@ -86,7 +86,7 @@
       <div class="topic-nav-shell">
         <a class="topic-nav-link" href="./">Home</a>
         <span class="topic-nav-sep" aria-hidden="true">·</span>
-        <a class="topic-nav-link" href="./transactions.html">Transactions</a>
+        <a class="topic-nav-link is-active" aria-current="page" href="./transactions.html">Transactions</a>
         <span class="topic-nav-sep" aria-hidden="true">·</span>
         <a class="topic-nav-link" href="./intents.html">Intents</a>
         <span class="topic-nav-sep" aria-hidden="true">·</span>
@@ -94,7 +94,7 @@
         <span class="topic-nav-sep" aria-hidden="true">·</span>
         <a class="topic-nav-link" href="./post-quantum.html">Post-quantum</a>
         <span class="topic-nav-sep" aria-hidden="true">·</span>
-        <a class="topic-nav-link is-active" aria-current="page" href="./retries.html">Retries</a>
+        <a class="topic-nav-link" href="./retries.html">Retries</a>
       </div>
     </nav>
   </header>
@@ -102,140 +102,199 @@
   <main class="page-shell">
     <section class="section-shell" id="overview">
       <div class="section-header">
-        <div class="section-kicker">Resilience</div>
-        <h2 class="section-title">Retries and bulk reads, on by default.</h2>
+        <div class="section-kicker">Constructing a transaction</div>
+        <h2 class="section-title">Build, preview, and send — no BigInt.</h2>
         <p class="section-summary">
-          <code>@fastnear/api</code> retries transient RPC failures — HTTP 408/429 and any 5xx, plus
-          JSON-RPC <code>-429</code>/<code>-32000</code> (except deterministic handler errors like
-          <code>UNKNOWN_ACCOUNT</code>, which fail fast) — with full-jitter exponential backoff, and
-          exposes an explicit bulk read API with a concurrency cap. Both behaviors are on by default and
-          configurable through <code>near.config</code>, so a rate-limited or briefly unhealthy endpoint
-          degrades into slower answers instead of thrown errors.
+          A NEAR transaction is a <code>receiverId</code> plus an ordered list of actions. With
+          <code>@fastnear/api</code> you declare the actions, preview them, and sign from a wallet or a
+          local key. There is one rule to learn, and it removes the whole class of big-number snags:
+          <strong>you pass amounts in whatever form is handy, and you always get decimal strings back</strong>.
         </p>
       </div>
 
       <div class="console-card-grid">
+        <article class="card">
+          <div class="card-kicker">The one rule</div>
+          <ul class="hero-points">
+            <li>
+              <strong>In:</strong> gas, deposits, and amounts accept a <code>string</code>,
+              <code>number</code>, or <code>bigint</code> — plus readable unit strings like
+              <code>"100 Tgas"</code> and <code>"0.01 NEAR"</code>.
+            </li>
+            <li>
+              <strong>Out:</strong> wide integers (<code>u64</code>/<code>u128</code> — amounts, gas,
+              nonces) come back as <strong>decimal strings</strong>, JSON-safe and matching NEAR RPC.
+            </li>
+            <li>
+              Inspect a transaction with <code>near.explain.tx(...)</code> or
+              <code>near.utils.txToJson(...)</code> — never <code>JSON.stringify</code> a raw
+              <code>bigint</code> (it throws).
+            </li>
+            <li>
+              You never need <code>BigInt</code> to build, send, or read a transaction.
+            </li>
+          </ul>
+        </article>
+
         <article class="code-card console-card">
           <div class="code-card-head">
             <div>
-              <div class="card-kicker">Tune both knobs</div>
+              <div class="card-kicker">Declare + preview</div>
               <p class="code-card-context">
-                The documented defaults, written out. You only need <code>near.config</code> to change
-                them — omitting this block entirely gives the same behavior.
+                <code>near.explain.tx</code> is a pure function — it returns a JSON-safe summary of
+                exactly what you are about to sign, with no network call and no wallet popup.
               </p>
             </div>
           </div>
           <div class="code-block">
-            <pre class="code-card-body"><code id="retry-config-snippet">near.config({
-  retry: {
-    enabled: true,           // false restores single-attempt behavior
-    maxAttempts: 5,          // total attempts including the first
-    baseBackoffMs: 250,      // full-jitter exponential backoff bounds
-    maxBackoffMs: 30000,
-    timeoutMs: 15000,        // per-attempt AbortController timeout (0 disables it)
-    respectRetryAfter: true, // honor a Retry-After header, capped at maxBackoffMs
-    writePolicy: "transport-only",
-  },
-  batch: {
-    maxConcurrency: 30,      // in-flight cap for near.batch / near.view.many
-  },
-});</code></pre>
+            <pre class="code-card-body"><code id="tx-preview-snippet">// One action: draw a green pixel on berryclub.ek.near.
+const actions = [
+  near.actions.functionCall({
+    methodName: "draw",
+    args: { pixels: [{ x: 10, y: 20, color: "00FF00" }] },
+    gas: "100 Tgas",      // or 100000000000000, or 100000000000000n
+    deposit: "0.01 NEAR", // or a yocto string like "10000000000000000000000"
+  }),
+];
+
+// Preview before signing — JSON-safe, gas/deposit stay as you wrote them.
+near.print(near.explain.tx({
+  signerId: "alice.near",
+  receiverId: "berryclub.ek.near",
+  actions,
+}));</code></pre>
             <div class="code-actions">
               <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
-              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#retry-config-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#tx-preview-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
             </div>
           </div>
-        </article>
-
-        <article class="card">
-          <div class="card-kicker">How writes retry</div>
-          <ul class="hero-points">
-            <li>
-              <code>writePolicy</code> controls how writes (<code>send_tx</code> /
-              <code>broadcast_tx_*</code>) retry; reads always follow the full retry policy.
-            </li>
-            <li>
-              <code>"transport-only"</code> (the default) retries only pre-response transport and
-              timeout errors, resending identical signed bytes — safe against double-apply.
-            </li>
-            <li>
-              <code>"never"</code> turns write retries off entirely; <code>"all"</code> retries every
-              retryable failure, including after an HTTP response was received.
-            </li>
-          </ul>
         </article>
       </div>
     </section>
 
-    <section class="section-shell" id="bulk-reads">
+    <section class="section-shell" id="signing">
       <div class="section-header">
-        <div class="section-kicker">Bulk reads</div>
-        <h2 class="section-title">Fan out many reads, get settled results back.</h2>
+        <div class="section-kicker">Sign and send</div>
+        <h2 class="section-title">The same actions, two signers.</h2>
         <p class="section-summary">
-          NEAR RPC has no array batching, so calls are not merged into one request —
-          <code>near.batch</code> and <code>near.view.many</code> run a concurrency-limited fan-out
-          where each item is its own retried call, at most <code>batch.maxConcurrency</code> (default
-          30) in flight. Both return <strong>settled</strong> results in input order: one failing call
-          never rejects the set.
+          Once the actions are declared, sending is one call. In a browser the wallet holds the key;
+          in Node you sign locally with a full-access key. Both accept the identical action shape and
+          the same unit strings.
         </p>
       </div>
 
       <div class="console-card-grid">
-        <article class="card">
-          <div class="card-kicker">The two entrypoints</div>
-          <ul class="hero-points">
-            <li>
-              <code>near.batch(requests)</code> — each <code>{ method, params, useArchival?, network? }</code>
-              runs as its own retried call. Write methods are rejected per-item.
-            </li>
-            <li>
-              <code>near.view.many(specs)</code> — the same fan-out for
-              <code>{ contractId, methodName, args?, argsBase64?, blockId? }</code> view specs, decoding
-              each ok result like <code>near.view</code>.
-            </li>
-          </ul>
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Browser wallet</div>
+              <p class="code-card-context">
+                After <code>nearWallet.connect(...)</code>, the wallet signs. Load the IIFE globals
+                (<code>near.js</code>, <code>wallet.js</code>) or import <code>@fastnear/api</code> +
+                <code>@fastnear/wallet</code>.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="tx-wallet-snippet">// Wallet-signed. Units in, no BigInt — the popup confirms the deposit.
+const result = await near.recipes.functionCall({
+  receiverId: "berryclub.ek.near",
+  methodName: "draw",
+  args: { pixels: [{ x: 10, y: 20, color: "00FF00" }] },
+  gas: "100 Tgas",
+  deposit: "0.01 NEAR",
+});
+
+near.print(result); // outcome amounts/gas are decimal strings</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#tx-wallet-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
         </article>
 
         <article class="code-card console-card">
           <div class="code-card-head">
             <div>
-              <div class="card-kicker">Settled results</div>
+              <div class="card-kicker">Node, local key</div>
               <p class="code-card-context">
-                Check <code>status</code> per item; application failures stay distinguishable from
-                infrastructure ones without re-parsing.
+                Sign with a full-access key from <code>@fastnear/utils</code>. Keep the key in
+                server-side secret storage — never ship it to a browser.
               </p>
             </div>
           </div>
           <div class="code-block">
-            <pre class="code-card-body"><code id="bulk-read-snippet">const results = await near.view.many([
-  { contractId: "wrap.near", methodName: "ft_balance_of", args: { account_id: "aurora" } },
-  { contractId: "wrap.near", methodName: "ft_balance_of", args: { account_id: "intents.near" } },
-]);
+            <pre class="code-card-body"><code id="tx-node-snippet">import { actions, config, sendTx } from "@fastnear/api";
+import { signerFromPrivateKey } from "@fastnear/utils";
 
-for (const r of results) {
-  if (r.status === "ok") near.print(r.result);
-  else if (r.kind === "contract") console.warn("contract reverted:", r.error);
-  else console.warn("infra error:", r.kind, r.error);
-}</code></pre>
+config({ networkId: "mainnet" });
+
+const result = await sendTx({
+  signerId: "alice.near",
+  signer: signerFromPrivateKey(privateKey), // full-access key
+  receiverId: "berryclub.ek.near",
+  actions: [
+    actions.functionCall({
+      methodName: "draw",
+      args: { pixels: [{ x: 10, y: 20, color: "00FF00" }] },
+      gas: "100 Tgas",
+      deposit: "0.01 NEAR",
+    }),
+  ],
+  waitUntil: "FINAL",
+});</code></pre>
             <div class="code-actions">
               <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
-              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#bulk-read-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#tx-node-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
             </div>
           </div>
         </article>
+      </div>
+    </section>
+
+    <section class="section-shell" id="wide-integers">
+      <div class="section-header">
+        <div class="section-kicker">Wide integers</div>
+        <h2 class="section-title">Big numbers are strings, everywhere.</h2>
+        <p class="section-summary">
+          NEAR amounts exceed <code>Number</code>'s safe range, so they are never plain JS numbers.
+          Across <code>@fastnear</code> they are <strong>decimal strings</strong> on the way out — the
+          same shape NEAR JSON-RPC uses — so a decoded transaction survives <code>JSON.stringify</code>
+          and re-encodes to identical bytes. Reach for <code>BigInt</code> only if you need arithmetic.
+        </p>
+      </div>
+
+      <div class="console-card-grid">
+        <article class="card">
+          <div class="card-kicker">What this buys you</div>
+          <ul class="hero-points">
+            <li>
+              <code>JSON.stringify(tx)</code> never throws — there is no <code>bigint</code> to trip on.
+            </li>
+            <li>
+              Values from <code>near.view</code>, <code>near.ft.balance</code>, and decoded borsh are
+              all strings, so they interoperate without conversion.
+            </li>
+            <li>
+              Serializing accepts <code>string | number | bigint</code>, so a value you read can be sent
+              straight back.
+            </li>
+          </ul>
+        </article>
 
         <article class="card">
-          <div class="card-kicker">Error kinds</div>
+          <div class="card-kicker">Decoding borsh yourself?</div>
           <ul class="hero-points">
-            <li><code>"contract"</code> — the contract method reverted or failed: an application failure, not an infrastructure one.</li>
-            <li><code>"transport"</code> — no HTTP response: network problem or timeout.</li>
-            <li><code>"http"</code> — a non-2xx HTTP response.</li>
-            <li><code>"rpc"</code> — a JSON-RPC-level error.</li>
-            <li><code>"unknown"</code> — a non-RPC failure, e.g. a write method rejected per-item inside <code>near.batch</code>.</li>
             <li>
-              Thrown errors are <code>FastNearRpcError</code> instances exposing the same
-              <code>kind</code>, plus <code>status</code>, <code>code</code>, <code>data</code>, and
-              <code>retryable</code>.
+              <code>@fastnear/borsh</code> <code>deserialize</code> returns <code>u64</code>/<code>u128</code>
+              as decimal strings by default.
+            </li>
+            <li>
+              Pass <code>deserialize(schema, bytes, { bigints: "bigint" })</code> to opt into native
+              <code>bigint</code> when you want arithmetic.
+            </li>
+            <li>
+              <code>u8</code>/<code>u16</code>/<code>u32</code> stay JS numbers (they fit safely).
             </li>
           </ul>
         </article>
@@ -246,11 +305,12 @@ for (const r of results) {
         <div class="callout-copy">
           <strong class="callout-title">Go deeper</strong>
           <p class="callout-body">
-            AI agents: the "Resilience and bulk reads" section of
+            AI agents: the "Result shapes" section of
             <a class="jump-link" href="./llms-full.txt" rel="noopener noreferrer" target="_blank">llms-full.txt</a>
-            carries this page in copy-paste form, and
+            states the wide-integers rule, and
             <a class="jump-link" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>
-            is the structured catalog behind it. Rate-limited? Free trial credits are available at
+            is the structured task catalog (see the <code>function-call</code> and <code>transfer</code>
+            recipes). Rate-limited? Free trial credits are at
             <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://dashboard.fastnear.com" rel="noopener noreferrer" target="_blank">dashboard.fastnear.com</a>
             — set <code>near.config({ apiKey })</code> once you have one.
           </p>
