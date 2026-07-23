@@ -28,6 +28,7 @@ Runtime has **zero npm dependencies** — `@fastnear/*` packages load as IIFE gl
 public/
   index.html              # Entry point — loads IIFE globals + ES module
   index.js                # App logic: wireUpAppEarly() + wireUpAppLate()
+  transactions.html       # Topic page — constructing a transaction (units in, strings out)
   intents.html            # Topic page — NEAR Intents swaps (@fastnear/intents)
   x402.html               # Topic page — x402 payments on NEAR (@fastnear/x402)
   post-quantum.html       # Topic page — ML-DSA-65 post-quantum keys
@@ -90,15 +91,19 @@ unreachable. See the README for the exact incantation.
 
 ### Topic pages (static explainers)
 
-`intents.html`, `x402.html`, `post-quantum.html`, and `retries.html` are
-standalone static explainers for humans and AI agents. They do NOT load
-`index.js` (the demo-app module); their only script is `page.js`
-(`wireUpTopicPage()`: theme toggle sharing the same `theme` localStorage
-key as the main page, plus code-card copy/wrap buttons). Content stays
+`transactions.html`, `intents.html`, `x402.html`, `post-quantum.html`, and
+`retries.html` are standalone static explainers for humans and AI agents.
+They do NOT load `index.js` (the demo-app module); their only script is
+`page.js` (`wireUpTopicPage()`: theme toggle sharing the same `theme`
+localStorage key as the main page, plus code-card copy/wrap buttons). All
+six pages (plus the home page) share a slim `topic-nav` strip under the
+header — mark the current page's link `is-active`/`aria-current="page"` and
+add any new page to every page's strip and footer Topics nav. Content stays
 verbatim-close to the generated catalog (`recipes.json` quickstarts) so
 pages and agent artifacts never drift — when a quickstart changes in the
 monorepo, re-sync and update the matching code card. Cloudflare Pages
-serves them at clean URLs (`/intents` etc., 308 from the `.html` form).
+serves them at clean URLs (`/intents`, `/transactions`, etc., 308 from the
+`.html` form).
 Each page is advertised to agents via `supportSurface.hostedPages` in the
 monorepo's `recipes/source.mjs` (rendered into hosted `llms.txt`).
 
@@ -152,7 +157,9 @@ These are configured in the near-connect MNW executor (`near-wallets/src/mnw.ts`
 
 ## Dependencies
 
-All `@fastnear/*` packages version in lockstep (currently `1.6.1`). Bump flow
+All `@fastnear/*` packages version in lockstep (currently `2.0.0`; the 2.0.0
+major made borsh `deserialize` return u64/u128 as decimal strings — "wide
+integers are strings" across the whole surface). Bump flow
 in the monorepo: set the root `package.json` version, then `yarn constraints
 --fix` propagates it to every workspace (`yarn.config.cjs`); commit the bump
 to main as the release commit and tag it.
