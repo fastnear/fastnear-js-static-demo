@@ -41,7 +41,7 @@ const [vpW, vpH] = (args.viewport || "1280x900").split("x").map(Number);
   page.on("pageerror", (err) => consoleErrors.push(`pageerror: ${err.message}`));
   page.on("console", (msg) => {
     if (msg.type() !== "error") return;
-    if ((msg.location()?.url || "").includes("cloudflareinsights.com")) return;
+    if (/cloudflareinsights/.test((msg.location()?.url || "") + msg.text())) return;
     consoleErrors.push(`console.error: ${msg.text()}`);
   });
 

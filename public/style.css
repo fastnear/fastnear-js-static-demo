@@ -189,6 +189,56 @@ pre {
     padding-bottom: 0.9rem;
 }
 
+/* Slim topic-navigation strip under the header — same on every page. */
+.topic-nav {
+    border-top: 1px solid var(--card-border);
+    border-bottom: 1px solid var(--card-border);
+    background: color-mix(in srgb, var(--card-background) 55%, transparent);
+}
+
+.topic-nav-shell {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 0.35rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.topic-nav-shell::-webkit-scrollbar {
+    display: none;
+}
+
+.topic-nav-link {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    padding: 0.28rem 0.62rem;
+    border-radius: 0.5rem;
+    font-size: 0.82rem;
+    color: var(--muted);
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.topic-nav-link:hover,
+.topic-nav-link:visited:hover {
+    color: var(--foreground);
+    background: var(--card-hover);
+}
+
+.topic-nav-link.is-active {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.topic-nav-sep {
+    color: var(--card-border-strong);
+    font-size: 0.82rem;
+    user-select: none;
+}
+
 .sticky-header {
     position: fixed;
     top: 0;

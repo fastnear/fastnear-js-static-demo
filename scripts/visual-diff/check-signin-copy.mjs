@@ -13,7 +13,7 @@ async function probe(browser, networkParam) {
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
-  page.on("console", (m) => { if (m.type() !== "error" || (m.location()?.url || "").includes("cloudflareinsights.com")) return; errors.push(`console.error: ${m.text()}`); });
+  page.on("console", (m) => { if (m.type() !== "error" || /cloudflareinsights/.test((m.location()?.url || "") + m.text())) return; errors.push(`console.error: ${m.text()}`); });
 
   const url = "http://localhost:8000/index.html" + (networkParam ? `?network=${networkParam}` : "");
   await page.goto(url, { waitUntil: "domcontentloaded" });
