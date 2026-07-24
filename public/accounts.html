@@ -209,10 +209,11 @@ const result = await near.createFundedTestnetAccount({
   publicKey,
 });
 
-// Persist the key in the *testnet* slot — account state is per network and
-// the default active network is mainnet. After this,
-// near.sendTx({ network: "testnet", ... }) signs for this account locally,
-// with no wallet. Needs @fastnear/api 2.1.1+.
+// Persist the key in the *testnet* slot. Account state is per network, so
+// name the network rather than relying on which one is active — that keeps
+// this correct even if the config() call above is dropped or reordered.
+// After this, near.sendTx({ network: "testnet", ... }) signs for this
+// account locally, with no wallet. Needs @fastnear/api 2.1.1+.
 near.state.updateAccountState(
   { accountId: "my-agent.testnet", privateKey },
   "testnet",
@@ -237,16 +238,20 @@ near.print(result);</code></pre>
               with no phrase.
             </li>
             <li>
-              Hand <code>privateKey</code> to <code>near.state.updateAccountState</code> and
-              <code>near.sendTx</code> signs for that account locally — no wallet, no popup.
-              A full-access key signs any action this way.
+              Hand <strong>both</strong> <code>accountId</code> and <code>privateKey</code> to
+              <code>near.state.updateAccountState</code> and <code>near.sendTx</code> signs for that
+              account locally — no wallet, no popup. A full-access key signs any action this way.
+              A slot holding a key but no <code>accountId</code> has nobody to sign <em>as</em>, and
+              throws <code>Must sign in</code>.
             </li>
             <li>
               <strong>Version floor:</strong> that persisted-key path needs
               <code>@fastnear/api</code> 2.1.1 or newer. Earlier releases ignored the stored
-              key and threw <code>Must sign in</code>. Passing
-              <code>signer: signerFromPrivateKey(privateKey)</code> to
-              <a class="jump-link" href="./transactions.html">sendTx</a> works on any version.
+              key and threw <code>Must sign in</code> — so that message means either a stale
+              version or an incomplete slot; check the slot first. Passing
+              <code>signer: near.utils.signerFromPrivateKey(privateKey)</code> with a matching
+              <code>signerId</code> to <a class="jump-link" href="./transactions.html">sendTx</a>
+              works on any version.
             </li>
           </ul>
         </article>

@@ -241,7 +241,15 @@
 &lt;script src="https://js.fastnear.com/x402.js"&gt;&lt;/script&gt;
 &lt;script type="module"&gt;
   // Wire these to buttons: connect first, pay second.
-  await nearWallet.connect();
+  // Connect on the SAME network the paidFetch pins below, and filter to
+  // wallets that can sign a delegate — most cannot, and the picker will
+  // otherwise offer wallets that fail at pay time. The connector is cached
+  // per network, so these options only apply on the first connect for it.
+  const connection = await nearWallet.connect({
+    network: "testnet",
+    features: { signDelegateActions: true, signDelegateActionsWithTtl: true },
+  });
+  if (!connection) throw new Error("No compatible wallet was connected");
 
   const signer = nearX402.createFastNearWalletSigner({
     wallet: nearWallet,

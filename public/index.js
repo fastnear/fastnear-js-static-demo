@@ -276,9 +276,11 @@ const demoConfigs = {
     signinNoteHtml:
       "Connect any wallet to try <code>draw</code> on <code>berryfast.near</code> (the visible board) and <code>buy_tokens</code> on <code>berryclub.ek.near</code> — all from the browser.",
     primaryMetric: {
-      label: "Total supply",
+      // berryclub.ek.near's NEP-141 token is BANANA (🍌, 18 decimals), not the
+      // 🥑 the board is bought with — ft_total_supply reports bananas.
+      label: "Total supply (BANANA)",
       fetch: () => near.ft.totalSupply({ contractId: currentContractId }),
-      format: (raw) => (raw ? `${(parseFloat(raw) / 1e18).toFixed(4)} 🥑` : "—"),
+      format: (raw) => (raw ? `${(parseFloat(raw) / 1e18).toFixed(4)} 🍌` : "—"),
     },
     secondaryMetric: {
       label: "Your balance",
@@ -294,7 +296,13 @@ const demoConfigs = {
       deposit: "0",
       buildArgs: () => {
         const { x, y } = randomBerryFastVisiblePixel();
-        return { pixels: [{ x, y, color: 65280 }] };
+        // berryfast.near and berryclub.ek.near do NOT share a schema. berryclub
+        // deserializes `color` as a u32 on chain; berryfast is a no-op stub whose
+        // board is rendered by an off-chain indexer that types the field as a
+        // 6-char hex STRING (fastnear/berry-fast, common/src/draw_event.rs).
+        // Anything else — an integer, or "65280" — leaves the tx succeeding while
+        // the indexer silently drops the whole batch and no pixel appears.
+        return { pixels: [{ x, y, color: "00FF00" }] };
       },
     },
     secondaryAction: {
@@ -629,6 +637,13 @@ export function applyHostedAssetLinks(root = globalThis.document, assetUrls = ge
 
 let restoreReady = Promise.resolve();
 let recipeTitleLookup = new Map();
+// Ids that actually get an `id="recipe-<id>"` element, so a related-recipe pill
+// never links to an anchor the page did not render.
+let landingRecipeIds = new Set();
+// Recipes that render somewhere other than the recipe grid. `view-contract` is
+// the hero quickstart card — getLandingRecipes() drops it from the grid so it is
+// not shown twice, which is why `#recipe-view-contract` does not exist.
+const recipeAnchorOverrides = { "view-contract": "hero-quickstart" };
 const themeStorageKey = "theme";
 const legacyThemeStorageKey = "fastnear:theme";
 const THEME = {
@@ -851,7 +866,11 @@ function renderPillList(items, { related = false } = {}) {
   return items.map((item) => {
     if (related) {
       const title = recipeTitleLookup.get(item) || item;
-      return `<a class="token-link" href="#recipe-${escapeHtml(item)}">${escapeHtml(title)}</a>`;
+      const anchor =
+        recipeAnchorOverrides[item] ||
+        (landingRecipeIds.has(item) ? `recipe-${item}` : null);
+      if (!anchor) return `<span class="token-pill">${escapeHtml(title)}</span>`;
+      return `<a class="token-link" href="#${escapeHtml(anchor)}">${escapeHtml(title)}</a>`;
     }
     return `<span class="token-pill"><code>${escapeHtml(item)}</code></span>`;
   }).join("");
@@ -942,9 +961,31 @@ function familyBadgeClass(id) {
   return `family-badge family-badge--${String(id).replace(/\./g, "-")}`;
 }
 
+// `familyCatalog[].authStyle` is a separate enum from a recipe's `auth`, so it
+// needs its own mapping. This used to be an inline ternary covering only `query`
+// and `bearer`; every other value fell through to the raw enum, which is how the
+// `wallet` family (added in 2.1.1) came to render a badge reading
+// "wallet-session". Anything unmapped now degrades to prose rather than an enum.
+function familyAuthLabel(authStyle) {
+  switch (authStyle) {
+    case "query":
+      return "Query auth";
+    case "bearer":
+      return "Bearer auth";
+    case "wallet-session":
+      return "Wallet session";
+    case "none":
+      return "No auth";
+    default:
+      return String(authStyle || "")
+        .replace(/[-_]/g, " ")
+        .replace(/^./, (c) => c.toUpperCase()) || "No auth";
+  }
+}
+
 function buildFamilyCard(family) {
   const docs = getServiceMeta(family.id);
-  const authStyle = family.authStyle === "query" ? "Query auth" : family.authStyle === "bearer" ? "Bearer auth" : family.authStyle;
+  const authStyle = familyAuthLabel(family.authStyle);
 
   return `
     <article class="card surface-card">
@@ -1158,6 +1199,9 @@ function renderNormalizedCatalog(generated) {
 
   recipeTitleLookup = new Map(
     (generated.recipes || []).map((recipe) => [recipe.id, recipe.title])
+  );
+  landingRecipeIds = new Set(
+    getLandingRecipes(generated.recipes).map((recipe) => recipe.id)
   );
 
   const starterRecipe = generated.recipes.find((recipe) => recipe.id === "view-contract");

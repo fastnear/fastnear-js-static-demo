@@ -45,7 +45,6 @@ scripts/
     responsive.mjs        # Hero across viewport widths
     README.md             # Workflow docs
 package.json              # Dev-only; runtime still has zero npm deps
-mike/                     # Archived earlier version of the demo
 ```
 
 ## Visual diff (dev tooling)
