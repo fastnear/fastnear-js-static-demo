@@ -132,7 +132,7 @@
           <div class="code-block">
             <pre class="code-card-body"><code id="retry-config-snippet">near.config({
   retry: {
-    enabled: true,           // false restores single-attempt behavior
+    enabled: true,           // false = one attempt; the timeoutMs deadline stays armed
     maxAttempts: 5,          // total attempts including the first
     baseBackoffMs: 250,      // full-jitter exponential backoff bounds
     maxBackoffMs: 30000,

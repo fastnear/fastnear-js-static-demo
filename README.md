@@ -304,7 +304,6 @@ public/                    # The site root — serve this directory, not the rep
 scripts/
   sync-agent-artifacts.mjs # Pulls the generated artifacts from fastnear-js-monorepo
   visual-diff/             # Playwright screenshot + computed-style diff
-mike/                      # Archived earlier version of the demo
 ```
 
 ## Links

@@ -33,7 +33,7 @@
       "name": "Intear Wallet",
       "icon": "https://storage.herewallet.app/upload/3f24b26bb142cd65ee694b78f8b3004976ebd97d9fc82f4c07d99b27bc124672.png",
       "description": "A fast and secure wallet for everyday interactions with dapps",
-      "website": "https://intea.rs/",
+      "website": "https://wallet.intear.tech",
       "version": "1.0.0",
       "executor": "https://wallet.intear.tech/near-selector.js",
       "type": "sandbox",
@@ -117,9 +117,9 @@
         "external": ["okxwallet.near"],
         "allowsOpen": [
           "https://www.okx.com",
-          "https://apps.apple.com/us/app/okx-wallet",
-          "https://microsoftedge.microsoft.com/addons/detail/okx-wallet",
-          "https://chromewebstore.google.com/detail/okx-wallet"
+          "https://apps.apple.com",
+          "https://microsoftedge.microsoft.com",
+          "https://chromewebstore.google.com"
         ]
       },
       "features": {

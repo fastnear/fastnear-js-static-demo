@@ -228,10 +228,13 @@ near.print(result);</code></pre>
             </li>
             <li>
               <strong>Browser wallet:</strong> <code>nearWallet.signDelegateActions</code> asks the
-              connected wallet to sign instead. Same NEP-366 delegate, but it comes back as
-              <code>borshSerializedBase64</code> only — hand those bytes to a relayer that speaks raw
-              NEP-366. <code>near.relayDelegate</code> takes the structured
-              <code>{ delegateAction, signature }</code> that <code>near.signDelegate</code> returns.
+              connected wallet to sign instead. Same NEP-366 delegate, but the shape is the wallet's
+              choice: it resolves to <code>{ signedDelegateActions: [...] }</code> whose entries are
+              a <code>{ borshSerializedBase64 }</code> object, a legacy
+              <code>{ delegateHash, signedDelegate }</code> pair, or a bare base64 string — branch on
+              what you get. <code>near.relayDelegate</code> takes the structured
+              <code>{ delegateAction, signature }</code> that <code>near.signDelegate</code> returns,
+              so borsh-only bytes need a relayer that speaks raw NEP-366.
             </li>
             <li>
               Either way the relayer pays; the sender authorizes the exact actions and a

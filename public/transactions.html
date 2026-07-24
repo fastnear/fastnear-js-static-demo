@@ -5,7 +5,7 @@
   <meta content="width=device-width,initial-scale=1.0" name="viewport" />
   <title>Constructing a transaction — FastNear JS</title>
   <meta
-    content="Build a NEAR transaction with @fastnear/api and zero BigInt snags: actions with unit gas/deposit strings, preview with near.explain.tx, sign from a wallet or a local key. Wide integers are decimal strings — you never need BigInt."
+    content="Build a NEAR transaction with @fastnear/api and zero BigInt snags: actions with unit gas/deposit strings, preview with near.explain.tx, sign from a wallet or a local key. Decoded wide integers are decimal strings — you never need BigInt."
     name="description"
   />
   <link href="assets/favicon.png" rel="icon" type="image/png" />
@@ -123,11 +123,17 @@
             <li>
               <strong>In:</strong> gas, deposits, and amounts accept a <code>string</code>,
               <code>number</code>, or <code>bigint</code> — plus readable unit strings like
-              <code>"100 Tgas"</code> and <code>"0.01 NEAR"</code>.
+              <code>"100 Tgas"</code> and <code>"0.01 NEAR"</code>. Unit strings are resolved by the
+              local signing path; going through a wallet, convert them yourself with
+              <code>near.utils.convertUnit</code>.
             </li>
             <li>
-              <strong>Out:</strong> wide integers (<code>u64</code>/<code>u128</code> — amounts, gas,
-              nonces) come back as <strong>decimal strings</strong>, JSON-safe and matching NEAR RPC.
+              <strong>Out:</strong> what <code>@fastnear</code> <em>decodes</em> — borsh
+              <code>deserialize</code>, <code>near.ft.*</code>, <code>near.utils.txToJson</code> —
+              gives wide integers back as <strong>decimal strings</strong>. Results that pass RPC
+              JSON straight through keep NEAR's own types, so yocto fields
+              (<code>deposit</code>, <code>tokens_burnt</code>) are strings while
+              <code>gas_burnt</code> and access-key <code>nonce</code> are JSON numbers.
             </li>
             <li>
               Inspect a transaction with <code>near.explain.tx(...)</code> or
@@ -183,8 +189,10 @@ near.print(near.explain.tx({
         <p class="section-summary">
           Once the actions are declared, sending is one call. Either a wallet holds the key — the
           usual browser case — or you sign locally with a full-access key, which is the usual
-          server case but is not limited to Node. Both accept the identical action shape and the
-          same unit strings.
+          server case but is not limited to Node. Both accept the identical action shape, but only
+          the local path resolves unit strings: a wallet forwards <code>gas</code> and
+          <code>deposit</code> verbatim to its executor, which calls <code>BigInt()</code> on them.
+          Pass anything readable through <code>near.utils.convertUnit</code> first.
         </p>
       </div>
 
@@ -201,16 +209,23 @@ near.print(near.explain.tx({
             </div>
           </div>
           <div class="code-block">
-            <pre class="code-card-body"><code id="tx-wallet-snippet">// Wallet-signed. Units in, no BigInt — the popup confirms the deposit.
+            <pre class="code-card-body"><code id="tx-wallet-snippet">// Sign in first: this is what puts the account in near.state, and
+// sendTx reads that — not the wallet — to decide who signs.
+await near.recipes.connect({ contractId: "berryclub.ek.near" });
+
+// Resolve unit strings BEFORE they cross into a wallet: the wallet
+// forwards gas/deposit verbatim to the executor, which calls BigInt().
 const result = await near.recipes.functionCall({
   receiverId: "berryclub.ek.near",
   methodName: "draw",
   args: { pixels: [{ x: 10, y: 20, color: 65280 }] },
-  gas: "100 Tgas",
+  gas: near.utils.convertUnit("100 Tgas"),
   deposit: "0",
 });
 
-near.print(result); // outcome amounts/gas are decimal strings</code></pre>
+// Yocto fields (deposit, tokens_burnt) are decimal strings;
+// gas_burnt comes straight from the RPC as a JSON number.
+near.print(result);</code></pre>
             <div class="code-actions">
               <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
               <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#tx-wallet-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
@@ -272,12 +287,15 @@ const result = await sendTx({
           </div>
           <div class="code-block">
             <pre class="code-card-body"><code id="tx-payable-snippet">// Readable units in; the wallet popup confirms the exact deposit.
+await near.recipes.connect({ contractId: "berryclub.ek.near" });
+
 const result = await near.recipes.functionCall({
   receiverId: "berryclub.ek.near",
   methodName: "buy_tokens",
   args: {},
-  gas: "100 Tgas",
-  deposit: "0.01 NEAR", // or a yocto string like "10000000000000000000000"
+  gas: near.utils.convertUnit("100 Tgas"),
+  // convertUnit also takes a yocto string like "10000000000000000000000"
+  deposit: near.utils.convertUnit("0.01 NEAR"),
 });
 
 near.print(result);</code></pre>
@@ -293,12 +311,13 @@ near.print(result);</code></pre>
     <section class="section-shell" id="wide-integers">
       <div class="section-header">
         <div class="section-kicker">Wide integers</div>
-        <h2 class="section-title">Big numbers are strings, everywhere.</h2>
+        <h2 class="section-title">Everything we decode is a string.</h2>
         <p class="section-summary">
-          NEAR amounts exceed <code>Number</code>'s safe range, so they are never plain JS numbers.
-          Across <code>@fastnear</code> they are <strong>decimal strings</strong> on the way out — the
-          same shape NEAR JSON-RPC uses — so a decoded transaction survives <code>JSON.stringify</code>
-          and re-encodes to identical bytes. Reach for <code>BigInt</code> only if you need arithmetic.
+          Yocto amounts exceed <code>Number</code>'s safe range, so <code>@fastnear</code> never
+          decodes them to plain JS numbers — everything it deserializes comes back as a
+          <strong>decimal string</strong>, so a decoded transaction survives
+          <code>JSON.stringify</code> and re-encodes to identical bytes. Values it merely relays from
+          the RPC keep whatever type NEAR sent. Reach for <code>BigInt</code> only for arithmetic.
         </p>
       </div>
 
@@ -310,8 +329,10 @@ near.print(result);</code></pre>
               <code>JSON.stringify(tx)</code> never throws — there is no <code>bigint</code> to trip on.
             </li>
             <li>
-              Values from <code>near.view</code>, <code>near.ft.balance</code>, and decoded borsh are
-              all strings, so they interoperate without conversion.
+              Values from <code>near.ft.balance</code> and decoded borsh are strings, so they
+              interoperate without conversion. <code>near.view</code> is a pass-through — it returns
+              the contract's own JSON, so a field like <code>ft_metadata().decimals</code> is a
+              number because the contract said so.
             </li>
             <li>
               Serializing accepts <code>string | number | bigint</code>, so a value you read can be sent
