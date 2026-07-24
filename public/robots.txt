@@ -1,0 +1,13 @@
+# js.fastnear.com — agent-first NEAR RPC and API library.
+# Everything here is public documentation; crawl freely.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://js.fastnear.com/sitemap.xml
+
+# Machine-readable surfaces, in the order an agent should read them:
+#   1. https://js.fastnear.com/llms.txt        concise runtime + package map
+#   2. https://js.fastnear.com/recipes.json    task catalog with runnable snippets
+#   3. https://js.fastnear.com/agents.js       hosted terminal wrapper
+#   4. https://js.fastnear.com/llms-full.txt   full reference

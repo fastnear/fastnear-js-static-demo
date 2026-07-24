@@ -72,6 +72,18 @@
 /ml-dsa-65-types.mjs  https://unpkg.com/@fastnear/ml-dsa-65/dist/esm/index.d.ts 301
 /ml-dsa-65-types.cjs  https://unpkg.com/@fastnear/ml-dsa-65/dist/cjs/index.d.cts 301
 
+# @fastnear/seed-phrase
+/seed-phrase.js         https://unpkg.com/@fastnear/seed-phrase/dist/umd/browser.global.js 301
+/seed-phrase-iife.js    https://unpkg.com/@fastnear/seed-phrase/dist/umd/browser.global.js 301
+/seed-phrase-umd.js     https://unpkg.com/@fastnear/seed-phrase/dist/umd/browser.global.js 301
+/seed-phrase-esm.js     https://unpkg.com/@fastnear/seed-phrase/dist/esm/index.js 301
+/seed-phrase-cjs.js     https://unpkg.com/@fastnear/seed-phrase/dist/cjs/index.cjs 301
+/seed-phrase.mjs        https://unpkg.com/@fastnear/seed-phrase/dist/esm/index.js 301
+/seed-phrase.cjs        https://unpkg.com/@fastnear/seed-phrase/dist/cjs/index.cjs 301
+/seed-phrase-types.js   https://unpkg.com/@fastnear/seed-phrase/dist/esm/index.d.ts 301
+/seed-phrase-types.mjs  https://unpkg.com/@fastnear/seed-phrase/dist/esm/index.d.ts 301
+/seed-phrase-types.cjs  https://unpkg.com/@fastnear/seed-phrase/dist/cjs/index.d.cts 301
+
 # @fastnear/near-connect
 /near-connect.js       https://unpkg.com/@fastnear/near-connect/cdn/hot-connect.iife.js 301
 /near-connect-iife.js  https://unpkg.com/@fastnear/near-connect/cdn/hot-connect.iife.js 301

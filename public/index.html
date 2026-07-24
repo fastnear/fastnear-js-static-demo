@@ -9,6 +9,10 @@
     name="description"
   />
   <link href="assets/favicon.png" rel="icon" type="image/png" />
+  <!-- Agent-facing artifacts, discoverable without executing JS. -->
+  <link href="/llms.txt" rel="alternate" title="llms.txt — concise runtime map for AI agents" type="text/plain" />
+  <link href="/llms-full.txt" rel="alternate" title="llms-full.txt — full machine-readable reference" type="text/plain" />
+  <link href="/recipes.json" rel="alternate" title="recipes.json — machine-readable recipe catalog" type="application/json" />
   <link href="https://fonts.googleapis.com" rel="preconnect" />
   <link crossorigin href="https://fonts.gstatic.com" rel="preconnect" />
   <link
@@ -270,6 +274,7 @@
           <div class="hero-actions">
             <a class="button-primary" data-hosted-asset-link="recipes" href="./recipes.json" rel="noopener noreferrer" target="_blank">Open recipes.json</a>
             <a class="button-secondary" data-hosted-asset-link="agents" href="./agents.js" rel="noopener noreferrer" target="_blank">Open agents.js</a>
+            <a class="button-secondary" data-hosted-asset-link="llms" href="./llms.txt" rel="noopener noreferrer" target="_blank">Open llms.txt</a>
             <a class="button-secondary" href="https://dashboard.fastnear.com" rel="noopener noreferrer" target="_blank">Get an API key</a>
           </div>
           <ul class="hero-points">
@@ -888,6 +893,8 @@ await sendTx({
         <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/auth" rel="noopener noreferrer" target="_blank">Auth</a>
         <a class="nav-link jump-link" data-hosted-asset-link="recipes" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>
         <a class="nav-link jump-link" data-hosted-asset-link="agents" href="./agents.js" rel="noopener noreferrer" target="_blank">agents.js</a>
+        <a class="nav-link jump-link" data-hosted-asset-link="llms" href="./llms.txt" rel="noopener noreferrer" target="_blank">llms.txt</a>
+        <a class="nav-link jump-link" data-hosted-asset-link="llmsFull" href="./llms-full.txt" rel="noopener noreferrer" target="_blank">llms-full.txt</a>
         <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://www.npmjs.com/package/@fastnear/api" rel="noopener noreferrer" target="_blank">npm</a>
         <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://github.com/fastnear/js-monorepo" rel="noopener noreferrer" target="_blank">GitHub</a>
         <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://dashboard.fastnear.com" rel="noopener noreferrer" target="_blank">FastNear Dashboard</a>
