@@ -219,6 +219,41 @@ near.print(result);</code></pre>
           </div>
         </article>
 
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Relay a wallet-signed delegate</div>
+              <p class="code-card-context">
+                A browser wallet returns borsh, not the structured pair —
+                <code>near.relayDelegate</code> takes it directly.
+                <code>near.utils.parseSignedDelegate</code> does the conversion. Needs
+                <code>@fastnear/api</code> 2.3.0+.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="meta-wallet-relay-snippet">// The wallet holds the key; signDelegateActions hands back borsh bytes.
+const { signedDelegateActions } = await nearWallet.signDelegateActions({
+  delegateActions: [{ receiverId: "guest-book.near", actions: [/* … */] }],
+});
+
+// Relay it as-is — no hand-normalization. parseSignedDelegate turns the
+// wallet's { borshSerializedBase64 } into the { delegateAction, signature }
+// pair relayDelegate needs.
+const result = await near.relayDelegate({
+  signedDelegate: signedDelegateActions[0],
+  relayerSigner: signerFromPrivateKey(relayerPrivateKey),
+  relayerId: "relayer.near",
+});
+
+near.print(result);</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#meta-wallet-relay-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+
         <article class="card">
           <div class="card-kicker">Where the key lives</div>
           <ul class="hero-points">
@@ -228,13 +263,12 @@ near.print(result);</code></pre>
             </li>
             <li>
               <strong>Browser wallet:</strong> <code>nearWallet.signDelegateActions</code> asks the
-              connected wallet to sign instead. Same NEP-366 delegate, but the shape is the wallet's
-              choice: it resolves to <code>{ signedDelegateActions: [...] }</code> whose entries are
-              a <code>{ borshSerializedBase64 }</code> object, a legacy
-              <code>{ delegateHash, signedDelegate }</code> pair, or a bare base64 string — branch on
-              what you get. <code>near.relayDelegate</code> takes the structured
-              <code>{ delegateAction, signature }</code> that <code>near.signDelegate</code> returns,
-              so borsh-only bytes need a relayer that speaks raw NEP-366.
+              connected wallet to sign instead. Same NEP-366 delegate, but it comes back as borsh
+              (<code>{ signedDelegateActions: [{ borshSerializedBase64 }] }</code>). Hand an entry to
+              <code>near.relayDelegate({ signedDelegate })</code> — or
+              <code>near.utils.parseSignedDelegate</code> — and it converges on the same
+              <code>{ delegateAction, signature }</code> the local path uses. No hand-normalization,
+              no raw-NEP-366 relayer (2.3.0+).
             </li>
             <li>
               Either way the relayer pays; the sender authorizes the exact actions and a
