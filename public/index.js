@@ -294,7 +294,7 @@ const demoConfigs = {
       deposit: "0",
       buildArgs: () => {
         const { x, y } = randomBerryFastVisiblePixel();
-        return { pixels: [{ x, y, color: "00FF00" }] };
+        return { pixels: [{ x, y, color: 65280 }] };
       },
     },
     secondaryAction: {
