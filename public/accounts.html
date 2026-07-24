@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta content="width=device-width,initial-scale=1.0" name="viewport" />
-  <title>Retries and bulk reads — FastNear JS</title>
+  <title>Keys and accounts — FastNear JS</title>
   <meta
-    content="@fastnear/api retries transient RPC failures (429s and friends) with full-jitter backoff and exposes concurrency-capped bulk reads — near.batch and near.view.many return settled results with typed error kinds. Both are on by default and tuned through near.config."
+    content="Generate or recover NEAR keys from a BIP-39 seed phrase with @fastnear/seed-phrase, derive implicit account ids, and create + fund a testnet account with near.createFundedTestnetAccount."
     name="description"
   />
   <link href="assets/favicon.png" rel="icon" type="image/png" />
@@ -90,7 +90,7 @@
         <span class="topic-nav-sep" aria-hidden="true">·</span>
         <a class="topic-nav-link" href="./meta-transactions.html">Meta-tx</a>
         <span class="topic-nav-sep" aria-hidden="true">·</span>
-        <a class="topic-nav-link" href="./accounts.html">Accounts</a>
+        <a class="topic-nav-link is-active" aria-current="page" href="./accounts.html">Accounts</a>
         <span class="topic-nav-sep" aria-hidden="true">·</span>
         <a class="topic-nav-link" href="./intents.html">Intents</a>
         <span class="topic-nav-sep" aria-hidden="true">·</span>
@@ -98,148 +98,134 @@
         <span class="topic-nav-sep" aria-hidden="true">·</span>
         <a class="topic-nav-link" href="./post-quantum.html">Post-quantum</a>
         <span class="topic-nav-sep" aria-hidden="true">·</span>
-        <a class="topic-nav-link is-active" aria-current="page" href="./retries.html">Retries</a>
+        <a class="topic-nav-link" href="./retries.html">Retries</a>
       </div>
     </nav>
   </header>
 
   <main class="page-shell">
-    <section class="section-shell" id="overview">
+    <section class="section-shell" id="seed-phrases">
       <div class="section-header">
-        <div class="section-kicker">Resilience</div>
-        <h2 class="section-title">Retries and bulk reads, on by default.</h2>
+        <div class="section-kicker">Keys and accounts</div>
+        <h2 class="section-title">Make a key, recover it anywhere.</h2>
         <p class="section-summary">
-          <code>@fastnear/api</code> retries transient RPC failures — HTTP 408/429 and any 5xx, plus
-          JSON-RPC <code>-429</code>/<code>-32000</code> (except deterministic handler errors like
-          <code>UNKNOWN_ACCOUNT</code>, which fail fast) — with full-jitter exponential backoff, and
-          exposes an explicit bulk read API with a concurrency cap. Both behaviors are on by default and
-          configurable through <code>near.config</code>, so a rate-limited or briefly unhealthy endpoint
-          degrades into slower answers instead of thrown errors.
+          A NEAR account is controlled by keys. Generate one from a BIP-39 seed phrase you can write
+          down and recover in near-cli or any wallet, derive the implicit account it controls, or
+          create and fund a fresh testnet account — all with <code>@fastnear</code>.
         </p>
       </div>
 
       <div class="console-card-grid">
+        <article class="card">
+          <div class="card-kicker">Why a separate package</div>
+          <ul class="hero-points">
+            <li>
+              Seed-phrase support lives in <code>@fastnear/seed-phrase</code>, so the bip39 wordlist and
+              HD-derivation code never bloat the <code>@fastnear/api</code> core.
+            </li>
+            <li>
+              Derivation matches <code>near-seed-phrase</code> / near-cli exactly (SLIP-0010 ed25519 at
+              <code>m/44'/397'/0'</code>) — a phrase recovers the same key across every NEAR tool.
+            </li>
+            <li>
+              Load it as the <code>NearSeedPhrase</code> global next to <code>near.js</code>, or import
+              it in ESM / Node.
+            </li>
+          </ul>
+        </article>
+
         <article class="code-card console-card">
           <div class="code-card-head">
             <div>
-              <div class="card-kicker">Tune both knobs</div>
+              <div class="card-kicker">Generate + recover</div>
               <p class="code-card-context">
-                The documented defaults, written out. You only need <code>near.config</code> to change
-                them — omitting this block entirely gives the same behavior.
+                <code>generateSeedPhrase</code> makes a fresh key and its phrase;
+                <code>parseSeedPhrase</code> recovers the exact same key. Both return
+                <code>ed25519:</code> key strings.
               </p>
             </div>
           </div>
           <div class="code-block">
-            <pre class="code-card-body"><code id="retry-config-snippet">near.config({
-  retry: {
-    enabled: true,           // false restores single-attempt behavior
-    maxAttempts: 5,          // total attempts including the first
-    baseBackoffMs: 250,      // full-jitter exponential backoff bounds
-    maxBackoffMs: 30000,
-    timeoutMs: 15000,        // per-attempt AbortController timeout (0 disables it)
-    respectRetryAfter: true, // honor a Retry-After header, capped at maxBackoffMs
-    writePolicy: "transport-only",
-  },
-  batch: {
-    maxConcurrency: 30,      // in-flight cap for near.batch / near.view.many
-  },
-});</code></pre>
+            <pre class="code-card-body"><code id="acct-seed-snippet">import { generateSeedPhrase, parseSeedPhrase } from "@fastnear/seed-phrase";
+
+// Create a fresh key pair and its 12-word recovery phrase.
+const { seedPhrase, publicKey, privateKey } = generateSeedPhrase();
+
+// Recover the exact same keys later — byte-identical to near-cli.
+const recovered = parseSeedPhrase(seedPhrase);
+// recovered.publicKey === publicKey, recovered.privateKey === privateKey
+
+// generateSeedPhrase(256) makes a 24-word phrase.</code></pre>
             <div class="code-actions">
               <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
-              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#retry-config-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#acct-seed-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
             </div>
           </div>
-        </article>
-
-        <article class="card">
-          <div class="card-kicker">How writes retry</div>
-          <ul class="hero-points">
-            <li>
-              <code>writePolicy</code> controls how writes (<code>send_tx</code> /
-              <code>broadcast_tx_*</code>) retry; reads always follow the full retry policy.
-            </li>
-            <li>
-              <code>"transport-only"</code> (the default) retries only pre-response transport and
-              timeout errors, resending identical signed bytes — safe against double-apply.
-            </li>
-            <li>
-              <code>"never"</code> turns write retries off entirely; <code>"all"</code> retries every
-              retryable failure, including after an HTTP response was received.
-            </li>
-          </ul>
         </article>
       </div>
     </section>
 
-    <section class="section-shell" id="bulk-reads">
+    <section class="section-shell" id="create-account">
       <div class="section-header">
-        <div class="section-kicker">Bulk reads</div>
-        <h2 class="section-title">Fan out many reads, get settled results back.</h2>
+        <div class="section-kicker">Implicit and funded accounts</div>
+        <h2 class="section-title">Derive an address, or fund a testnet account.</h2>
         <p class="section-summary">
-          NEAR RPC has no array batching, so calls are not merged into one request —
-          <code>near.batch</code> and <code>near.view.many</code> run a concurrency-limited fan-out
-          where each item is its own retried call, at most <code>batch.maxConcurrency</code> (default
-          30) in flight. Both return <strong>settled</strong> results in input order: one failing call
-          never rejects the set.
+          Every ed25519 key already controls an <strong>implicit account</strong> — the 64-char hex of
+          its public key — with no on-chain setup. To get a <em>named</em> testnet account, let the
+          testnet faucet create and fund it for your key in one call.
         </p>
       </div>
 
       <div class="console-card-grid">
-        <article class="card">
-          <div class="card-kicker">The two entrypoints</div>
-          <ul class="hero-points">
-            <li>
-              <code>near.batch(requests)</code> — each <code>{ method, params, useArchival?, network? }</code>
-              runs as its own retried call. Write methods are rejected per-item.
-            </li>
-            <li>
-              <code>near.view.many(specs)</code> — the same fan-out for
-              <code>{ contractId, methodName, args?, argsBase64?, blockId? }</code> view specs, decoding
-              each ok result like <code>near.view</code>.
-            </li>
-          </ul>
-        </article>
-
         <article class="code-card console-card">
           <div class="code-card-head">
             <div>
-              <div class="card-kicker">Settled results</div>
+              <div class="card-kicker">Implicit + funded testnet</div>
               <p class="code-card-context">
-                Check <code>status</code> per item; application failures stay distinguishable from
-                infrastructure ones without re-parsing.
+                <code>near.implicitAccountId</code> is pure. <code>near.createFundedTestnetAccount</code>
+                POSTs to the NEAR testnet helper faucet — testnet only, there is no mainnet faucet.
               </p>
             </div>
           </div>
           <div class="code-block">
-            <pre class="code-card-body"><code id="bulk-read-snippet">const results = await near.view.many([
-  { contractId: "wrap.near", methodName: "ft_balance_of", args: { account_id: "aurora" } },
-  { contractId: "wrap.near", methodName: "ft_balance_of", args: { account_id: "intents.near" } },
-]);
+            <pre class="code-card-body"><code id="acct-create-snippet">import * as near from "@fastnear/api";
 
-for (const r of results) {
-  if (r.status === "ok") near.print(r.result);
-  else if (r.kind === "contract") console.warn("contract reverted:", r.error);
-  else console.warn("infra error:", r.kind, r.error);
-}</code></pre>
+const privateKey = near.utils.privateKeyFromRandom();
+const publicKey = near.utils.publicKeyFromPrivate(privateKey);
+
+// The account this key controls with no AddKey — 64-char hex.
+near.print(near.implicitAccountId(publicKey));
+
+// Or create + fund a named testnet account via the faucet.
+const result = await near.createFundedTestnetAccount({
+  newAccountId: "my-agent.testnet",
+  publicKey,
+});
+
+// Persist the key so near.sendTx signs locally from here on.
+near.state.updateAccountState({ accountId: "my-agent.testnet", privateKey });
+near.print(result);</code></pre>
             <div class="code-actions">
               <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
-              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#bulk-read-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#acct-create-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
             </div>
           </div>
         </article>
 
         <article class="card">
-          <div class="card-kicker">Error kinds</div>
+          <div class="card-kicker">Which key helper?</div>
           <ul class="hero-points">
-            <li><code>"contract"</code> — the contract method reverted or failed: an application failure, not an infrastructure one.</li>
-            <li><code>"transport"</code> — no HTTP response: network problem or timeout.</li>
-            <li><code>"http"</code> — a non-2xx HTTP response.</li>
-            <li><code>"rpc"</code> — a JSON-RPC-level error.</li>
-            <li><code>"unknown"</code> — a non-RPC failure, e.g. a write method rejected per-item inside <code>near.batch</code>.</li>
             <li>
-              Thrown errors are <code>FastNearRpcError</code> instances exposing the same
-              <code>kind</code>, plus <code>status</code>, <code>code</code>, <code>data</code>, and
-              <code>retryable</code>.
+              <strong>Recoverable:</strong> <code>@fastnear/seed-phrase</code> — a human-writable phrase
+              backs up the key.
+            </li>
+            <li>
+              <strong>Throwaway:</strong> <code>near.utils.privateKeyFromRandom()</code> — a fresh key
+              with no phrase.
+            </li>
+            <li>
+              Hand <code>privateKey</code> to <code>near.state.updateAccountState</code>, then
+              <code>near.sendTx</code> signs locally for that account.
             </li>
           </ul>
         </article>
@@ -250,13 +236,14 @@ for (const r of results) {
         <div class="callout-copy">
           <strong class="callout-title">Go deeper</strong>
           <p class="callout-body">
-            AI agents: the "Resilience and bulk reads" section of
-            <a class="jump-link" href="./llms-full.txt" rel="noopener noreferrer" target="_blank">llms-full.txt</a>
-            carries this page in copy-paste form, and
+            AI agents:
             <a class="jump-link" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>
-            is the structured catalog behind it. Rate-limited? Free trial credits are available at
-            <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://dashboard.fastnear.com" rel="noopener noreferrer" target="_blank">dashboard.fastnear.com</a>
-            — set <code>near.config({ apiKey })</code> once you have one.
+            carries the <code>account-from-seed-phrase</code> and <code>create-testnet-account</code>
+            recipes. Sign a transaction with the new key on the
+            <a class="jump-link" href="./transactions.html">transactions</a> page, or sign gaslessly on
+            <a class="jump-link" href="./meta-transactions.html">meta-transactions</a>. Rate-limited?
+            Free trial credits are at
+            <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://dashboard.fastnear.com" rel="noopener noreferrer" target="_blank">dashboard.fastnear.com</a>.
           </p>
         </div>
       </div>
