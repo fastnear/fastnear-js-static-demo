@@ -45,7 +45,8 @@
         "signDelegateActions": true,
         "signInWithoutAddKey": true,
         "verifyOwner": false,
-        "testnet": true
+        "testnet": true,
+        "signInAndSignMessage": true
       },
       "platform": {
         "web": "https://wallet.intear.tech"
