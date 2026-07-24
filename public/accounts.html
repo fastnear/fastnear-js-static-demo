@@ -128,8 +128,11 @@
               <code>m/44'/397'/0'</code>) — a phrase recovers the same key across every NEAR tool.
             </li>
             <li>
-              Load it as the <code>NearSeedPhrase</code> global next to <code>near.js</code>, or import
-              it in ESM / Node.
+              Load it in a browser with
+              <code>&lt;script src="https://js.fastnear.com/seed-phrase.js"&gt;&lt;/script&gt;</code>
+              next to <code>near.js</code> — it defines the <code>NearSeedPhrase</code> global
+              (<code>generateSeedPhrase</code>, <code>parseSeedPhrase</code>,
+              <code>NEAR_DERIVATION_PATH</code>) — or import it in ESM / Node.
             </li>
           </ul>
         </article>
@@ -190,6 +193,10 @@ const recovered = parseSeedPhrase(seedPhrase);
           <div class="code-block">
             <pre class="code-card-body"><code id="acct-create-snippet">import * as near from "@fastnear/api";
 
+// The faucet is testnet-only, and the default active network is mainnet —
+// pin testnet so the key and later sends land on the same network.
+near.config({ networkId: "testnet" });
+
 const privateKey = near.utils.privateKeyFromRandom();
 const publicKey = near.utils.publicKeyFromPrivate(privateKey);
 
@@ -202,8 +209,14 @@ const result = await near.createFundedTestnetAccount({
   publicKey,
 });
 
-// Persist the key so near.sendTx signs locally from here on.
-near.state.updateAccountState({ accountId: "my-agent.testnet", privateKey });
+// Persist the key in the *testnet* slot — account state is per network and
+// the default active network is mainnet. After this,
+// near.sendTx({ network: "testnet", ... }) signs for this account locally,
+// with no wallet. Needs @fastnear/api 2.1.1+.
+near.state.updateAccountState(
+  { accountId: "my-agent.testnet", privateKey },
+  "testnet",
+);
 near.print(result);</code></pre>
             <div class="code-actions">
               <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
@@ -224,8 +237,16 @@ near.print(result);</code></pre>
               with no phrase.
             </li>
             <li>
-              Hand <code>privateKey</code> to <code>near.state.updateAccountState</code>, then
-              <code>near.sendTx</code> signs locally for that account.
+              Hand <code>privateKey</code> to <code>near.state.updateAccountState</code> and
+              <code>near.sendTx</code> signs for that account locally — no wallet, no popup.
+              A full-access key signs any action this way.
+            </li>
+            <li>
+              <strong>Version floor:</strong> that persisted-key path needs
+              <code>@fastnear/api</code> 2.1.1 or newer. Earlier releases ignored the stored
+              key and threw <code>Must sign in</code>. Passing
+              <code>signer: signerFromPrivateKey(privateKey)</code> to
+              <a class="jump-link" href="./transactions.html">sendTx</a> works on any version.
             </li>
           </ul>
         </article>

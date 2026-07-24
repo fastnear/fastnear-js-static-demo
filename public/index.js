@@ -442,10 +442,10 @@ const serviceDocs = {
     summary: "Indexed key-value history and exact-key lookups.",
   },
   wallet: {
-    title: "Agents",
+    title: "Wallet",
     url: `${DOCS_BASE}/agents`,
     cta: "Read docs",
-    summary: "Wallet-backed flows, agent usage, and browser guidance.",
+    summary: "Connect, send transactions, and sign NEP-413 / NEP-366 payloads in the browser.",
   },
 };
 
@@ -704,6 +704,14 @@ function authLabel(auth) {
       return "Wallet + deposit";
     case "wallet":
       return "Wallet";
+    // The catalog also emits `bearer` (needs FASTNEAR_API_KEY) and
+    // `local-key` (needs a private key you hold). Both used to fall through
+    // to the `default` branch and render as "No auth", which read as
+    // "nothing required" for the four recipes that need a credential.
+    case "bearer":
+      return "API key";
+    case "local-key":
+      return "Local key";
     case "none":
     default:
       return "No auth";
@@ -741,34 +749,47 @@ function getServiceMeta(serviceId) {
   };
 }
 
+// Shorter homepage copy for the catalog's discovery steps, keyed on the
+// artifact each step points at rather than on `entry.step`. The catalog
+// renumbers when a step is inserted — llms-full.txt landed as step 4 and
+// pushed curl + jq to 5 — and an ordinal switch silently relabels every
+// step after the insertion point. Unknown steps render the catalog's own
+// copy, so a new step is never mislabelled, only unabbreviated.
+const discoveryCopyByKey = {
+  "llms.txt": {
+    label: "Read llms.txt",
+    detail: "Start with the short overview and core entrypoints.",
+  },
+  "recipes.json": {
+    label: "Open recipes.json",
+    detail: "Pick the smallest runnable task for the question.",
+  },
+  "agents.js": {
+    label: "Run agents.js",
+    detail: "Use JS when you want to branch, loop, or reshape objects.",
+  },
+  "llms-full.txt": {
+    label: "Read llms-full.txt",
+    detail: "Go here when the concise map runs out of detail.",
+  },
+  "fall back to curl + jq": {
+    label: "Use curl + jq",
+    detail: "Use raw transport when you want shell-native filtering.",
+  },
+};
+
+function discoveryCopyKey(entry) {
+  if (entry.url) return String(entry.url).split("/").pop();
+  return String(entry.label || "").toLowerCase();
+}
+
 function getDiscoveryCopy(entry) {
-  switch (entry.step) {
-    case 1:
-      return {
-        label: "Read llms.txt",
-        detail: "Start with the short overview and core entrypoints.",
-      };
-    case 2:
-      return {
-        label: "Open recipes.json",
-        detail: "Pick the smallest runnable task for the question.",
-      };
-    case 3:
-      return {
-        label: "Run agents.js",
-        detail: "Use JS when you want to branch, loop, or reshape objects.",
-      };
-    case 4:
-      return {
-        label: "Use curl + jq",
-        detail: "Use raw transport when you want shell-native filtering.",
-      };
-    default:
-      return {
-        label: entry.label,
-        detail: entry.detail,
-      };
-  }
+  return (
+    discoveryCopyByKey[discoveryCopyKey(entry)] || {
+      label: entry.label,
+      detail: entry.detail,
+    }
+  );
 }
 
 function calloutIcon(variant) {

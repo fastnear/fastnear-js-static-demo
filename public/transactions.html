@@ -181,9 +181,10 @@ near.print(near.explain.tx({
         <div class="section-kicker">Sign and send</div>
         <h2 class="section-title">The same actions, two signers.</h2>
         <p class="section-summary">
-          Once the actions are declared, sending is one call. In a browser the wallet holds the key;
-          in Node you sign locally with a full-access key. Both accept the identical action shape and
-          the same unit strings.
+          Once the actions are declared, sending is one call. Either a wallet holds the key — the
+          usual browser case — or you sign locally with a full-access key, which is the usual
+          server case but is not limited to Node. Both accept the identical action shape and the
+          same unit strings.
         </p>
       </div>
 
@@ -223,7 +224,11 @@ near.print(result); // outcome amounts/gas are decimal strings</code></pre>
               <div class="card-kicker">Node, local key</div>
               <p class="code-card-context">
                 Sign with a full-access key from <code>@fastnear/utils</code>. Keep the key in
-                server-side secret storage — never ship it to a browser.
+                server-side secret storage — never ship it to a browser. Passing <code>signer</code>
+                explicitly works on any version; to skip it on every call, persist the key once with
+                <code>near.state.updateAccountState</code> and <code>sendTx</code> will find it
+                (<code>@fastnear/api</code> 2.1.1+ — see
+                <a class="jump-link" href="./accounts.html">keys &amp; accounts</a>).
               </p>
             </div>
           </div>
