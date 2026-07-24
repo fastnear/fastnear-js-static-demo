@@ -117,7 +117,8 @@ Discovery order for agents:
 1. Read llms.txt — Start with the concise repo and runtime map.
 2. Fetch recipes.json — Use the hosted machine-readable recipe catalog with stable IDs, families, auth, returns, and snippets.
 3. Run agents.js — Use the hosted terminal wrapper when you want the FastNear JS surface.
-4. Fall back to curl + jq — Use raw transport when survey scripting or HTTP-level inspection is more useful.
+4. Read llms-full.txt — Go here for the complete reference when the concise map is not enough.
+5. Fall back to curl + jq — Use raw transport when survey scripting or HTTP-level inspection is more useful.
 
 Set `FASTNEAR_API_KEY` before running the authenticated examples. Free trial credits are available at [dashboard.fastnear.com](https://dashboard.fastnear.com).
 
@@ -187,6 +188,7 @@ printf 'block_hash=%s\nstorage_usage=%s\n' "$BLOCK_HASH" "$STORAGE_USAGE"
 - `transfers`: Asset-movement-focused history for accounts when the question is specifically about transfers, not full execution.
 - `neardata`: Block and shard documents for recent chain-state inspection without reconstructing shard layouts yourself.
 - `fastdata.kv`: Indexed key-value history for exact keys, predecessor scans, and account-scoped storage exploration.
+- `wallet`: Browser wallet session and signing surface from @fastnear/wallet: connect, send transactions, sign NEP-413 messages, and sign NEP-366 delegate actions.
 
 Browser-only tasks such as wallet connect, function calls, transfers, and message signing stay on the browser-global or ESM snippets from the generated catalog.
 <!-- END GENERATED:terminal-first -->
@@ -259,26 +261,50 @@ node scripts/sync-agent-artifacts.mjs
 ## Running
 
 ```bash
-python3 -m http.server
-# Open http://localhost:8000/public/index.html
+npm run serve   # python3 -m http.server 8000 --directory public
+# Open http://localhost:8000/index.html
 ```
+
+Serve `public/` as the document root, not the repo root — the pages reference `/recipes.json`,
+`/agents.js`, and `/llms.txt` as root-relative paths, so those only resolve the way they do in
+production (where `public/` *is* the site root) when the server is pointed at `public/`.
 
 That's it. If you want to develop against local builds of `@fastnear/api` or `@fastnear/wallet`, symlink their `dist/` directories into `public/` and update the `<script>` `src` attributes.
 
 ## Project Structure
 
 ```
-public/
-  index.html          # Hosted demo shell and generated recipe cards
-  index.js            # Berry Club app logic and recipe renderer
-  style.css           # Page layout and task-card styling
-  manifest.json       # Wallet manifest (which wallets to offer)
-  agents.js           # Hosted terminal wrapper alias
-  near-node.mjs       # Backward-compatible alias to the same wrapper
-  recipes.json        # Hosted machine-readable recipe catalog alias
-  generated/          # Synced recipe catalog and LLM discovery files
-  assets/             # Favicon, images
-mike/                 # Archived earlier version of the demo
+public/                    # The site root — serve this directory, not the repo root
+  index.html               # Hosted demo shell and generated recipe cards
+  index.js                 # Berry Club app logic and recipe renderer
+  page.js                  # Shared chrome for the topic pages (theme, code buttons)
+  style.css                # Page layout and task-card styling
+  404.html                 # Not-found page; also links the agent artifacts
+  manifest.json            # Wallet manifest (which wallets to offer)
+  _redirects               # Cloudflare Pages aliases (/near.js, /wallet.js, …)
+  robots.txt               # Crawl policy + sitemap pointer
+  sitemap.xml              # Topic pages and agent artifacts
+
+  transactions.html        # Topic — constructing a transaction (units in, strings out)
+  meta-transactions.html   # Topic — NEP-366 delegate actions and relayers
+  accounts.html            # Topic — seed phrases, implicit and funded accounts
+  intents.html             # Topic — NEAR Intents swaps (@fastnear/intents)
+  x402.html                # Topic — x402 payments on NEAR (@fastnear/x402)
+  post-quantum.html        # Topic — ML-DSA-65 post-quantum keys
+  retries.html             # Topic — retries + bulk reads (429 resilience)
+
+  recipes.json             # Hosted machine-readable recipe catalog  ┐
+  llms.txt                 # Concise agent entry point               │ generated in the
+  llms-full.txt            # Full agent reference                    │ monorepo, synced
+  agents.js                # Hosted terminal wrapper                 │ here — never edit
+  near-node.mjs            # Backward-compatible alias to the wrapper│ by hand
+  generated/recipes/       # Catalog under its canonical path        ┘
+
+  assets/                  # Favicon, images
+scripts/
+  sync-agent-artifacts.mjs # Pulls the generated artifacts from fastnear-js-monorepo
+  visual-diff/             # Playwright screenshot + computed-style diff
+mike/                      # Archived earlier version of the demo
 ```
 
 ## Links
