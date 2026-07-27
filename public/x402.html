@@ -5,12 +5,12 @@
   <meta content="width=device-width,initial-scale=1.0" name="viewport" />
   <title>x402 payments on NEAR — FastNear JS</title>
   <meta
-    content="x402 on NEAR is live: inspect canonical v2 payment challenges and verified mainnet settlements across equivalent NEAR and Base merchant APIs."
+    content="Learn how agents use x402 to discover a paid API, inspect exact payment terms, pay within a user's policy, and receive a useful result. Inspect verified NEAR and Base mainnet flows."
     name="description"
   />
-  <meta content="x402 on NEAR is live — FastNear JS" property="og:title" />
+  <meta content="How agents use x402 — live on NEAR and Base" property="og:title" />
   <meta
-    content="Inspect canonical x402 v2 challenges and verified mainnet settlements across NEAR and Base."
+    content="A practical guide to pay-per-use APIs for agents, with live x402 challenges and verified NEAR and Base settlements."
     property="og:description"
   />
   <meta content="website" property="og:type" />
@@ -48,7 +48,7 @@
     wireUpX402Page();
   </script>
 
-  <link href="style.css" rel="stylesheet" />
+  <link href="style.css?v=x402-agent-stories-v2" rel="stylesheet" />
 
   <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0c50ed3b94a1468199725e8c5d6df7ef"}'></script><!-- End Cloudflare Web Analytics -->
 </head>
@@ -116,27 +116,23 @@
     <section class="x402-hero" id="overview">
       <div class="x402-hero-grid">
         <div class="x402-hero-copy">
-          <div class="section-kicker">Mainnet HTTP payments</div>
-          <h1 class="x402-hero-title">x402 on NEAR is live.</h1>
+          <div class="section-kicker">Pay-per-use APIs for agents</div>
+          <h1 class="x402-hero-title">Pay for one API call. Get one useful result.</h1>
           <p class="x402-hero-summary">
-            One useful agent-data API now accepts the same <strong>$0.001 USDC payment</strong> on
-            separate NEAR and Base deployments. Both paths use canonical x402 v2, the
-            <code>exact</code> scheme, and our production facilitator.
+            <strong>x402 is a machine-readable checkout for HTTP.</strong> An agent can discover a paid
+            API, see the exact price and recipient, pay within its user&rsquo;s policy, and receive the
+            result&mdash;without creating an account, managing an API key, or buying a subscription.
+            We run that full loop on NEAR and Base mainnet.
           </p>
-          <div class="x402-status-row" aria-label="Deployment status">
-            <span class="x402-status-pill"><span aria-hidden="true" class="x402-status-dot"></span>Mainnet</span>
+          <div class="x402-status-row" aria-label="Deployment status" role="group">
+            <span class="x402-status-pill"><span aria-hidden="true" class="x402-status-dot"></span>Live on NEAR + Base</span>
             <span class="x402-status-pill">x402 v2</span>
             <span class="x402-status-pill">Exact USDC</span>
             <span class="x402-status-pill">Paid flow verified</span>
           </div>
           <div class="hero-actions">
-            <a class="button-primary" href="#live-challenge">Inspect the live 402</a>
-            <a
-              class="button-secondary external-link-indicator external-link-indicator-pill"
-              href="https://merchant-near.mikedotexe.com"
-              rel="noopener noreferrer"
-              target="_blank"
-            >Open NEAR merchant</a>
+            <a class="button-primary" href="#basics">Follow the agent loop</a>
+            <a class="button-secondary" href="#live-challenge">Inspect a live 402</a>
           </div>
           <p class="x402-action-note">Free inspection. No wallet, signature, or payment.</p>
         </div>
@@ -178,31 +174,145 @@
         </aside>
       </div>
 
-      <div class="x402-flow" aria-label="x402 payment flow">
+      <div class="x402-flow" aria-label="x402 agent payment loop" role="group">
         <div class="x402-flow-step">
           <span class="x402-flow-number">01</span>
-          <strong>Agent requests data</strong>
-          <small>POST a valid evidence query</small>
+          <strong>Discover &amp; request</strong>
+          <small>Use OpenAPI, llms.txt, or a known URL</small>
         </div>
         <span class="x402-flow-arrow" aria-hidden="true">→</span>
         <div class="x402-flow-step">
           <span class="x402-flow-number">02</span>
-          <strong>Merchant returns 402</strong>
-          <small>Price, asset, payee, and schemas</small>
+          <strong>Read the 402 terms</strong>
+          <small>Price, asset, payee, network, and schema</small>
         </div>
         <span class="x402-flow-arrow" aria-hidden="true">→</span>
         <div class="x402-flow-step">
           <span class="x402-flow-number">03</span>
-          <strong>Facilitator settles</strong>
-          <small>NEAR or Base, one network per process</small>
+          <strong>Apply user policy</strong>
+          <small>Budget, allowlists, and approval threshold</small>
         </div>
         <span class="x402-flow-arrow" aria-hidden="true">→</span>
         <div class="x402-flow-step">
           <span class="x402-flow-number">04</span>
-          <strong>API returns evidence</strong>
-          <small>Finality, block identity, and provenance</small>
+          <strong>Authorize &amp; retry</strong>
+          <small>Sign one bounded payment authorization</small>
+        </div>
+        <span class="x402-flow-arrow" aria-hidden="true">→</span>
+        <div class="x402-flow-step">
+          <span class="x402-flow-number">05</span>
+          <strong>Settle &amp; deliver</strong>
+          <small>Facilitator settles; API returns the result</small>
         </div>
       </div>
+    </section>
+
+    <section class="section-shell" id="basics">
+      <div class="section-header">
+        <div class="section-kicker">x402 in one minute</div>
+        <h2 class="section-title">HTTP 402 becomes a checkout, not a dead end.</h2>
+        <p class="section-summary">
+          A normal API request comes first. If the route costs money, the merchant answers
+          <code>402 Payment Required</code> with machine-readable terms. The agent can inspect those
+          terms before deciding whether to create a narrowly scoped payment and retry the same request.
+        </p>
+      </div>
+
+      <div class="x402-basics-grid">
+        <article class="card x402-basics-card x402-basics-provides">
+          <div class="card-kicker">What x402 provides</div>
+          <h3 class="card-title">A common payment handshake for APIs</h3>
+          <ul class="hero-points">
+            <li>An exact price, asset, network, and recipient before payment.</li>
+            <li>Input and output metadata an agent can understand.</li>
+            <li>A paid retry that carries proof of authorization.</li>
+            <li>Settlement evidence and safer duplicate/retry handling.</li>
+          </ul>
+        </article>
+
+        <article class="card x402-basics-card">
+          <div class="card-kicker">What remains your responsibility</div>
+          <h3 class="card-title">Trust and spending policy stay outside the protocol</h3>
+          <ul class="hero-points">
+            <li>Which merchants and networks the agent may use.</li>
+            <li>Per-call, daily, and task-level spending limits.</li>
+            <li>When a person must approve before the agent pays.</li>
+            <li>Whether the purchased result is useful and trustworthy.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="x402-why-row" aria-label="Traditional API access compared with x402" role="group">
+        <div>
+          <span>Traditional paid API</span>
+          <strong>Account → API key → plan → invoice → request</strong>
+        </div>
+        <span class="x402-why-arrow" aria-hidden="true">becomes</span>
+        <div>
+          <span>x402 paid API</span>
+          <strong>Request → inspect price → pay once → receive result</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-shell" id="user-stories">
+      <div class="section-header">
+        <div class="section-kicker">Expected user stories</div>
+        <h2 class="section-title">What agents and their users actually accomplish.</h2>
+        <p class="section-summary">
+          x402 is most useful when a task needs one valuable capability now and a subscription,
+          account, or long-lived credential would be unnecessary friction.
+        </p>
+      </div>
+
+      <div class="x402-story-grid">
+        <article class="card x402-story-card">
+          <span class="x402-story-number">01</span>
+          <div class="card-kicker">Research &amp; verification</div>
+          <h3 class="card-title">Buy one trustworthy fact</h3>
+          <p class="card-summary">
+            <strong>User:</strong> &ldquo;Confirm this account or transaction.&rdquo;<br />
+            <strong>Agent:</strong> finds an evidence route, accepts a $0.001 price within budget, and
+            returns normalized finality, block identity, provenance, and a receipt.
+          </p>
+        </article>
+
+        <article class="card x402-story-card">
+          <span class="x402-story-number">02</span>
+          <div class="card-kicker">Planning before execution</div>
+          <h3 class="card-title">Price a route before moving money</h3>
+          <p class="card-summary">
+            <strong>User:</strong> &ldquo;What would it take to move USDC from Base to NEAR?&rdquo;<br />
+            <strong>Agent:</strong> buys a signed quote, compares output, fees, expiry, and time, then
+            asks separately before any executable transfer.
+          </p>
+        </article>
+
+        <article class="card x402-story-card">
+          <span class="x402-story-number">03</span>
+          <div class="card-kicker">Bounded autonomy</div>
+          <h3 class="card-title">Give an agent a controlled operating budget</h3>
+          <p class="card-summary">
+            <strong>User:</strong> approves merchants, assets, networks, and a spend cap.<br />
+            <strong>Agent:</strong> purchases small data, tools, or compute calls as needed and records
+            the cost and settlement evidence for every result.
+          </p>
+        </article>
+      </div>
+
+      <aside aria-labelledby="x402-user-control-title" class="x402-control-band">
+        <div>
+          <div class="card-kicker">The user stays in control</div>
+          <strong id="x402-user-control-title">x402 enables payment; it does not grant blanket permission to spend.</strong>
+        </div>
+        <ul aria-label="Recommended agent payment controls">
+          <li>Merchant allowlist</li>
+          <li>Network + asset allowlist</li>
+          <li>Per-call and daily caps</li>
+          <li>Approval above threshold</li>
+          <li>Receipt and result log</li>
+        </ul>
+      </aside>
     </section>
 
     <section class="section-shell" id="live-challenge">
@@ -213,6 +323,7 @@
           <p class="section-summary">
             Each button sends a valid unpaid account-evidence request to the production merchant and
             decodes its <code>PAYMENT-REQUIRED</code> header in your browser. It cannot sign or pay.
+            A 402 here is the expected checkout response, not an application failure.
           </p>
         </div>
         <span class="x402-free-label">Free · read-only</span>
@@ -277,13 +388,22 @@
 
     <section class="section-shell" id="parity">
       <div class="section-header">
-        <div class="section-kicker">Equivalent capability</div>
-        <h2 class="section-title">One useful API, proven on two settlement rails.</h2>
+        <div class="section-kicker">A concrete merchant</div>
+        <h2 class="section-title">Useful agent work, paid over two settlement rails.</h2>
         <p class="section-summary">
-          The merchant semantics are deliberately the same. Only the payment network, canonical USDC
-          asset, and facilitator process change.
+          This is not a synthetic &ldquo;pay to reveal hello world&rdquo; route. The merchant sells
+          normalized chain evidence, bounded activity intelligence, entity lookup, and route planning.
+          The capability semantics stay the same while the payment network changes.
         </p>
       </div>
+
+      <ul class="x402-capability-list" aria-label="Paid merchant capabilities">
+        <li>Account evidence</li>
+        <li>Transaction evidence</li>
+        <li>Activity search</li>
+        <li>Entity lookup</li>
+        <li>Base → NEAR USDC quote</li>
+      </ul>
 
       <div class="x402-parity-grid">
         <article class="card x402-parity-card">
@@ -400,45 +520,45 @@
 
     <section class="section-shell" id="roles">
       <div class="section-header">
-        <div class="section-kicker">Integration map</div>
-        <h2 class="section-title">Choose the smallest surface for the job.</h2>
+        <div class="section-kicker">Responsibility map</div>
+        <h2 class="section-title">Who decides, who pays, and who settles?</h2>
         <p class="section-summary">
-          <code>@fastnear/x402</code> supplies the NEAR payer, seller, and facilitator building blocks.
-          The Base deployment is a parity control using the official EVM middleware.
+          x402 coordinates the actors; it does not collapse them into one trusted service. Keeping these
+          boundaries explicit is what makes an agent payment understandable and governable.
         </p>
       </div>
 
       <div class="docs-grid x402-roles-grid">
         <article class="card">
-          <div class="card-kicker">Browser payer</div>
-          <h3 class="card-title">A person chooses to pay</h3>
+          <div class="card-kicker">User or operator</div>
+          <h3 class="card-title">Sets intent and spending policy</h3>
           <p class="card-summary">
-            Inject <code>nearWallet</code>, then call <code>createNearPaymentFetch</code> only after an
-            explicit user action. No secrets belong in the browser.
+            Funds the wallet and defines merchant, network, asset, budget, and approval boundaries.
+            Browser payments happen only after an explicit user action.
           </p>
         </article>
         <article class="card">
-          <div class="card-kicker">Agent payer</div>
-          <h3 class="card-title">A backend pays a protected URL</h3>
+          <div class="card-kicker">Agent or payer</div>
+          <h3 class="card-title">Inspects terms and authorizes one call</h3>
           <p class="card-summary">
-            Use <code>@fastnear/x402/node</code> with a server-side full-access payer key and a pinned
-            network.
+            Discovers the route, validates the challenge against policy, creates a bounded authorization,
+            retries the request, and records the outcome.
           </p>
         </article>
         <article class="card">
-          <div class="card-kicker">Seller</div>
-          <h3 class="card-title">A route advertises its price</h3>
+          <div class="card-kicker">Merchant or seller</div>
+          <h3 class="card-title">Advertises price and delivers the resource</h3>
           <p class="card-summary">
-            Use <code>@fastnear/x402/server</code>, complete runtime schemas, and an explicitly configured
-            facilitator.
+            Publishes discoverable input/output schemas, returns exact payment terms, and runs the useful
+            operation only after successful settlement.
           </p>
         </article>
         <article class="card">
           <div class="card-kicker">Facilitator</div>
-          <h3 class="card-title">A relayer verifies and settles</h3>
+          <h3 class="card-title">Verifies, sponsors gas, and settles once</h3>
           <p class="card-summary">
-            The production service verifies the authorization, pays network gas, settles once, and safely
-            reconciles retries.
+            Checks the authorization, pays network gas, settles on NEAR or Base, and safely reconciles
+            duplicates, retries, and indeterminate submissions.
           </p>
         </article>
       </div>
