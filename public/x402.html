@@ -5,14 +5,21 @@
   <meta content="width=device-width,initial-scale=1.0" name="viewport" />
   <title>x402 payments on NEAR — FastNear JS</title>
   <meta
-    content="Pay x402-protected URLs with NEAR using @fastnear/x402: browser wallet payers, Node payers, seller resource servers, and self-hosted facilitators — x402 v2 exact payments settled as NEP-141 token transfers."
+    content="x402 on NEAR is live: inspect canonical v2 payment challenges and verified mainnet settlements across equivalent NEAR and Base merchant APIs."
     name="description"
   />
+  <meta content="x402 on NEAR is live — FastNear JS" property="og:title" />
+  <meta
+    content="Inspect canonical x402 v2 challenges and verified mainnet settlements across NEAR and Base."
+    property="og:description"
+  />
+  <meta content="website" property="og:type" />
+  <meta content="https://js.fastnear.com/x402.html" property="og:url" />
   <link href="assets/favicon.png" rel="icon" type="image/png" />
   <link href="https://fonts.googleapis.com" rel="preconnect" />
   <link crossorigin href="https://fonts.gstatic.com" rel="preconnect" />
   <link
-    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Fira+Code:wght@400;500&amp;display=swap"
     rel="stylesheet"
   />
 
@@ -35,8 +42,10 @@
 
   <script type="module">
     import { wireUpTopicPage } from "./page.js";
+    import { wireUpX402Page } from "./x402-page.js";
 
     wireUpTopicPage();
+    wireUpX402Page();
   </script>
 
   <link href="style.css" rel="stylesheet" />
@@ -103,42 +112,286 @@
     </nav>
   </header>
 
-  <main class="page-shell">
-    <section class="section-shell" id="overview">
+  <main class="page-shell x402-page">
+    <section class="x402-hero" id="overview">
+      <div class="x402-hero-grid">
+        <div class="x402-hero-copy">
+          <div class="section-kicker">Mainnet HTTP payments</div>
+          <h1 class="x402-hero-title">x402 on NEAR is live.</h1>
+          <p class="x402-hero-summary">
+            One useful agent-data API now accepts the same <strong>$0.001 USDC payment</strong> on
+            separate NEAR and Base deployments. Both paths use canonical x402 v2, the
+            <code>exact</code> scheme, and our production facilitator.
+          </p>
+          <div class="x402-status-row" aria-label="Deployment status">
+            <span class="x402-status-pill"><span aria-hidden="true" class="x402-status-dot"></span>Mainnet</span>
+            <span class="x402-status-pill">x402 v2</span>
+            <span class="x402-status-pill">Exact USDC</span>
+            <span class="x402-status-pill">Paid flow verified</span>
+          </div>
+          <div class="hero-actions">
+            <a class="button-primary" href="#live-challenge">Inspect the live 402</a>
+            <a
+              class="button-secondary external-link-indicator external-link-indicator-pill"
+              href="https://merchant-near.mikedotexe.com"
+              rel="noopener noreferrer"
+              target="_blank"
+            >Open NEAR merchant</a>
+          </div>
+          <p class="x402-action-note">Free inspection. No wallet, signature, or payment.</p>
+        </div>
+
+        <aside class="x402-proof-card" aria-label="Verified mainnet payment evidence">
+          <div class="x402-proof-head">
+            <span class="card-kicker">Mainnet proof</span>
+            <span class="x402-proof-date">Verified July 27, 2026</span>
+          </div>
+          <a
+            class="x402-proof-row"
+            href="https://nearblocks.io/txns/5dm822stypkWdK7A5s2owV9QBPbh4uZhLPoWou2mw4zs"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <span class="x402-chain-mark x402-chain-mark-near">N</span>
+            <span>
+              <strong>NEAR mainnet</strong>
+              <small>Paid evidence lookup · finalized</small>
+            </span>
+            <span class="x402-proof-arrow" aria-hidden="true">↗</span>
+          </a>
+          <a
+            class="x402-proof-row"
+            href="https://basescan.org/tx/0x5376373cceaae0bc078129c61163b3439f1377099ba034e6f4f895c4cb66f28d"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <span class="x402-chain-mark x402-chain-mark-base">B</span>
+            <span>
+              <strong>Base mainnet</strong>
+              <small>Paid evidence lookup · confirmed</small>
+            </span>
+            <span class="x402-proof-arrow" aria-hidden="true">↗</span>
+          </a>
+          <p class="x402-proof-note">
+            These links are the settlement evidence—not screenshots or simulated responses.
+          </p>
+        </aside>
+      </div>
+
+      <div class="x402-flow" aria-label="x402 payment flow">
+        <div class="x402-flow-step">
+          <span class="x402-flow-number">01</span>
+          <strong>Agent requests data</strong>
+          <small>POST a valid evidence query</small>
+        </div>
+        <span class="x402-flow-arrow" aria-hidden="true">→</span>
+        <div class="x402-flow-step">
+          <span class="x402-flow-number">02</span>
+          <strong>Merchant returns 402</strong>
+          <small>Price, asset, payee, and schemas</small>
+        </div>
+        <span class="x402-flow-arrow" aria-hidden="true">→</span>
+        <div class="x402-flow-step">
+          <span class="x402-flow-number">03</span>
+          <strong>Facilitator settles</strong>
+          <small>NEAR or Base, one network per process</small>
+        </div>
+        <span class="x402-flow-arrow" aria-hidden="true">→</span>
+        <div class="x402-flow-step">
+          <span class="x402-flow-number">04</span>
+          <strong>API returns evidence</strong>
+          <small>Finality, block identity, and provenance</small>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-shell" id="live-challenge">
+      <div class="section-header x402-section-header">
+        <div>
+          <div class="section-kicker">Live challenge inspector</div>
+          <h2 class="section-title">See what an agent sees before it pays.</h2>
+          <p class="section-summary">
+            Each button sends a valid unpaid account-evidence request to the production merchant and
+            decodes its <code>PAYMENT-REQUIRED</code> header in your browser. It cannot sign or pay.
+          </p>
+        </div>
+        <span class="x402-free-label">Free · read-only</span>
+      </div>
+
+      <div class="x402-inspector-grid">
+        <article class="card x402-inspector-card" data-inspector="near">
+          <div class="x402-inspector-head">
+            <span class="x402-chain-mark x402-chain-mark-near">N</span>
+            <div>
+              <h3 class="card-title">NEAR challenge</h3>
+              <p class="card-summary"><code>mike.near</code> account evidence</p>
+            </div>
+          </div>
+          <button class="button-primary x402-inspect-button" data-inspect-chain="near" type="button">
+            Inspect NEAR 402
+          </button>
+          <p aria-live="polite" class="x402-inspector-status" data-inspector-status>Ready to inspect.</p>
+          <dl class="x402-challenge-output" data-inspector-output hidden>
+            <div><dt>HTTP</dt><dd data-field="httpStatus"></dd></div>
+            <div><dt>Version</dt><dd data-field="version"></dd></div>
+            <div><dt>Network</dt><dd data-field="network"></dd></div>
+            <div><dt>Scheme</dt><dd data-field="scheme"></dd></div>
+            <div><dt>Price</dt><dd data-field="price"></dd></div>
+            <div><dt>Asset</dt><dd data-field="asset"></dd></div>
+            <div><dt>Payee</dt><dd data-field="payTo"></dd></div>
+            <div><dt>Bazaar</dt><dd data-field="bazaar"></dd></div>
+          </dl>
+        </article>
+
+        <article class="card x402-inspector-card" data-inspector="base">
+          <div class="x402-inspector-head">
+            <span class="x402-chain-mark x402-chain-mark-base">B</span>
+            <div>
+              <h3 class="card-title">Base challenge</h3>
+              <p class="card-summary"><code>0xcA20…1CC9</code> account evidence</p>
+            </div>
+          </div>
+          <button class="button-primary x402-inspect-button" data-inspect-chain="base" type="button">
+            Inspect Base 402
+          </button>
+          <p aria-live="polite" class="x402-inspector-status" data-inspector-status>Ready to inspect.</p>
+          <dl class="x402-challenge-output" data-inspector-output hidden>
+            <div><dt>HTTP</dt><dd data-field="httpStatus"></dd></div>
+            <div><dt>Version</dt><dd data-field="version"></dd></div>
+            <div><dt>Network</dt><dd data-field="network"></dd></div>
+            <div><dt>Scheme</dt><dd data-field="scheme"></dd></div>
+            <div><dt>Price</dt><dd data-field="price"></dd></div>
+            <div><dt>Asset</dt><dd data-field="asset"></dd></div>
+            <div><dt>Payee</dt><dd data-field="payTo"></dd></div>
+            <div><dt>Bazaar</dt><dd data-field="bazaar"></dd></div>
+          </dl>
+        </article>
+      </div>
+      <noscript>
+        <div class="callout callout-info callout-compact">
+          JavaScript is required to decode the live challenge. The merchant and its OpenAPI documents
+          remain available through the links below.
+        </div>
+      </noscript>
+    </section>
+
+    <section class="section-shell" id="parity">
       <div class="section-header">
-        <div class="section-kicker">HTTP payments <span class="badge-pill badge-pill-subtle">New</span></div>
-        <h2 class="section-title">Pay x402-protected URLs with NEAR.</h2>
+        <div class="section-kicker">Equivalent capability</div>
+        <h2 class="section-title">One useful API, proven on two settlement rails.</h2>
         <p class="section-summary">
-          x402 turns HTTP <code>402 Payment Required</code> into a machine-payable flow: a server answers
-          with a payment challenge, the client pays, and the same request retries with proof of payment.
-          <code>@fastnear/x402</code> implements the official <strong>x402 v2 exact</strong> scheme on
-          <code>near:mainnet</code> and <code>near:testnet</code> — payments settle as NEP-141 fungible-token
-          transfers authorized with a NEP-366 <code>SignedDelegate</code>, so a facilitator relays the
-          transaction and pays gas on the payer's behalf. The package is package-only: it ships separately
-          and is not part of <code>near.js</code> or <code>agents.js</code>.
+          The merchant semantics are deliberately the same. Only the payment network, canonical USDC
+          asset, and facilitator process change.
         </p>
       </div>
 
-      <div class="console-card-grid">
-        <article class="card">
-          <div class="card-kicker">Canonical payment shape</div>
+      <div class="x402-parity-grid">
+        <article class="card x402-parity-card">
+          <div class="x402-inspector-head">
+            <span class="x402-chain-mark x402-chain-mark-near">N</span>
+            <div>
+              <div class="card-kicker">Flagship deployment</div>
+              <h3 class="card-title">NEAR mainnet</h3>
+            </div>
+          </div>
+          <dl class="x402-parity-list">
+            <div><dt>Network</dt><dd><code>near:mainnet</code></dd></div>
+            <div><dt>Asset</dt><dd><code>17208628…36133a1</code></dd></div>
+            <div><dt>Payee</dt><dd><code>count.mike.near</code></dd></div>
+            <div><dt>Price</dt><dd>1,000 atomic USDC · $0.001</dd></div>
+          </dl>
+          <div class="x402-link-row">
+            <a href="https://merchant-near.mikedotexe.com/openapi.json" rel="noopener noreferrer" target="_blank">OpenAPI</a>
+            <a href="https://merchant-near.mikedotexe.com/llms.txt" rel="noopener noreferrer" target="_blank">llms.txt</a>
+            <a href="https://merchant-near.mikedotexe.com/.well-known/x402" rel="noopener noreferrer" target="_blank">x402 discovery</a>
+          </div>
+        </article>
+
+        <article class="card x402-parity-card">
+          <div class="x402-inspector-head">
+            <span class="x402-chain-mark x402-chain-mark-base">B</span>
+            <div>
+              <div class="card-kicker">Control deployment</div>
+              <h3 class="card-title">Base mainnet</h3>
+            </div>
+          </div>
+          <dl class="x402-parity-list">
+            <div><dt>Network</dt><dd><code>eip155:8453</code></dd></div>
+            <div><dt>Asset</dt><dd><code>0x833589…A02913</code></dd></div>
+            <div><dt>Payee</dt><dd><code>0x7Ff46a…1cF88c</code></dd></div>
+            <div><dt>Price</dt><dd>1,000 atomic USDC · $0.001</dd></div>
+          </dl>
+          <div class="x402-link-row">
+            <a href="https://merchant-base.mikedotexe.com/openapi.json" rel="noopener noreferrer" target="_blank">OpenAPI</a>
+            <a href="https://merchant-base.mikedotexe.com/llms.txt" rel="noopener noreferrer" target="_blank">llms.txt</a>
+            <a href="https://merchant-base.mikedotexe.com/.well-known/x402" rel="noopener noreferrer" target="_blank">x402 discovery</a>
+          </div>
+        </article>
+      </div>
+
+      <article class="card x402-route-card">
+        <div class="x402-route-mark" aria-hidden="true">
+          <span class="x402-chain-mark x402-chain-mark-base">B</span>
+          <span>→</span>
+          <span class="x402-chain-mark x402-chain-mark-near">N</span>
+        </div>
+        <div>
+          <div class="card-kicker">New live route · quote only</div>
+          <h3 class="card-title">Canonical Base USDC → canonical NEAR USDC</h3>
+          <p class="card-summary">
+            <code>POST /v1/routes/usdc/quote</code> returns a signed NEAR Intents 1Click quote with
+            expected output, minimum output, fees, expiry, and an estimated settlement time. The first
+            release is intentionally non-custodial: <code>fundsMoved</code> is always false, and it never
+            returns a deposit address.
+          </p>
+          <div class="x402-link-row">
+            <a
+              href="https://merchant-near.mikedotexe.com/openapi.json"
+              rel="noopener noreferrer"
+              target="_blank"
+            >Inspect route schema</a>
+            <a
+              href="https://docs.near-intents.org/integration/distribution-channels/1click-api/quickstart/making-a-request"
+              rel="noopener noreferrer"
+              target="_blank"
+            >NEAR Intents flow</a>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="section-shell" id="scan-readiness">
+      <div class="section-header">
+        <div class="section-kicker">Partner readiness</div>
+        <h2 class="section-title">The merchant side is ready. Indexing NEAR is the next handoff.</h2>
+        <p class="section-summary">
+          This line matters: our deployment proves discovery, payment, settlement, and delivery. x402 Scan
+          still needs to admit and understand the NEAR network upstream.
+        </p>
+      </div>
+      <div class="x402-readiness-grid">
+        <article class="card x402-readiness-ready">
+          <div class="card-kicker">Ready now · controlled by us</div>
           <ul class="hero-points">
+            <li>Canonical x402 v2 runtime challenges on both origins.</li>
+            <li>OpenAPI, <code>/llms.txt</code>, and <code>/.well-known/x402</code> discovery.</li>
+            <li>Bazaar input and output metadata in every paid route challenge.</li>
+            <li>Successful mainnet settlement and deterministic delivery evidence.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <div class="card-kicker">Next handoff · x402 Scan</div>
+          <ul class="hero-points">
+            <li>Add <code>near:mainnet</code> to accepted network identifiers.</li>
+            <li>Decode NEAR payment requirements and surface NEP-141 assets and account IDs.</li>
+            <li>Index NEAR merchant routes and display NEAR-specific settlement evidence.</li>
             <li>
-              Protocol: <strong>x402 v2</strong>, <code>exact</code> scheme only, on
-              <code>near:mainnet</code> and <code>near:testnet</code>.
-            </li>
-            <li>
-              Settlement: one NEP-141 <code>ft_transfer</code> (30&nbsp;TGas, 1&nbsp;yoctoNEAR deposit)
-              relayed by the facilitator — native NEAR is not a direct payment asset, and recipients need
-              token storage registration.
-            </li>
-            <li>
-              Authorization: the payer signs a NEP-366 <code>SignedDelegate</code>; wallet and local-key
-              payers therefore need <strong>full-access keys</strong>.
-            </li>
-            <li>
-              Browser wallets must advertise both <code>signDelegateActions</code> and the timeout-aware
-              <code>signDelegateActionsWithTtl</code>.
+              Track the implementation in
+              <a
+                href="https://github.com/Merit-Systems/x402scan/issues/1040"
+                rel="noopener noreferrer"
+                target="_blank"
+              >x402 Scan issue #1040</a>.
             </li>
           </ul>
         </article>
@@ -148,67 +401,45 @@
     <section class="section-shell" id="roles">
       <div class="section-header">
         <div class="section-kicker">Integration map</div>
-        <h2 class="section-title">Pick the smallest surface for the job.</h2>
+        <h2 class="section-title">Choose the smallest surface for the job.</h2>
         <p class="section-summary">
-          Browser clients, Node clients, sellers, and facilitators use focused entrypoints so server code
-          and secrets never leak into the wallet page.
+          <code>@fastnear/x402</code> supplies the NEAR payer, seller, and facilitator building blocks.
+          The Base deployment is a parity control using the official EVM middleware.
         </p>
       </div>
 
-      <div class="docs-grid">
+      <div class="docs-grid x402-roles-grid">
         <article class="card">
-          <div class="card-kicker">Browser wallet payer</div>
-          <h3 class="card-title">A user pays after clicking</h3>
+          <div class="card-kicker">Browser payer</div>
+          <h3 class="card-title">A person chooses to pay</h3>
           <p class="card-summary">
-            Inject <code>nearWallet</code> into the x402 signer; the browser global is
-            <code>nearX402</code>.
+            Inject <code>nearWallet</code>, then call <code>createNearPaymentFetch</code> only after an
+            explicit user action. No secrets belong in the browser.
           </p>
-          <ul class="surface-list">
-            <li>Import: <code>@fastnear/x402</code> root</li>
-            <li>Factories: <code>createFastNearWalletSigner</code>, <code>createNearPaymentFetch</code></li>
-            <li>Secrets: none in browser code</li>
-          </ul>
         </article>
-
         <article class="card">
-          <div class="card-kicker">Node payer</div>
-          <h3 class="card-title">A backend or agent pays</h3>
+          <div class="card-kicker">Agent payer</div>
+          <h3 class="card-title">A backend pays a protected URL</h3>
           <p class="card-summary">
-            An RPC-backed local signer for server-side processes and AI agents paying protected URLs.
+            Use <code>@fastnear/x402/node</code> with a server-side full-access payer key and a pinned
+            network.
           </p>
-          <ul class="surface-list">
-            <li>Import: <code>@fastnear/x402/node</code> + root</li>
-            <li>Factories: <code>createLocalNearSigner</code>, <code>createNearPaymentFetch</code></li>
-            <li>Secrets: payer full-access key, server-side only</li>
-          </ul>
         </article>
-
         <article class="card">
           <div class="card-kicker">Seller</div>
-          <h3 class="card-title">A server protects a route</h3>
+          <h3 class="card-title">A route advertises its price</h3>
           <p class="card-summary">
-            Build the NEAR resource-server core, then hand it to the x402 HTTP framework adapter you
-            choose.
+            Use <code>@fastnear/x402/server</code>, complete runtime schemas, and an explicitly configured
+            facilitator.
           </p>
-          <ul class="surface-list">
-            <li>Import: <code>@fastnear/x402/server</code></li>
-            <li>Factory: <code>createNearResourceServer</code></li>
-            <li>Secrets: usually none; the facilitator is configured explicitly — there is no default</li>
-          </ul>
         </article>
-
         <article class="card">
-          <div class="card-kicker">Facilitator operator</div>
+          <div class="card-kicker">Facilitator</div>
           <h3 class="card-title">A relayer verifies and settles</h3>
           <p class="card-summary">
-            The relayer pays gas and the 1-yoctoNEAR deposit; HTTP framework and secret storage are
-            operator choices.
+            The production service verifies the authorization, pays network gas, settles once, and safely
+            reconciles retries.
           </p>
-          <ul class="surface-list">
-            <li>Import: <code>@fastnear/x402/facilitator</code></li>
-            <li>Factory: <code>createNearFacilitator</code></li>
-            <li>Secrets: relayer full-access key, server-side only</li>
-          </ul>
         </article>
       </div>
     </section>
