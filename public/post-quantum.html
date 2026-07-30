@@ -117,6 +117,13 @@
           <code>@fastnear/ml-dsa-65</code> package (Node.js 20.19+ or a modern browser), so apps that
           only use classical keys never download the post-quantum implementation.
         </p>
+        <p class="section-summary">
+          Install it with <code>npm i @fastnear/ml-dsa-65</code>, or load it in a browser with
+          <code>&lt;script src="https://js.fastnear.com/ml-dsa-65.js"&gt;&lt;/script&gt;</code>
+          next to <code>near.js</code> — it defines the <code>NearMlDsa65</code> global
+          (<code>generateSigner</code>, <code>publicKeyToHandle</code>, <code>verifyHash</code>)
+          with the same API as the ESM build, and no build step.
+        </p>
       </div>
 
       <div class="docs-grid">
@@ -134,8 +141,15 @@
             </li>
             <li>
               Sign and submit through <code>sendTx({ signerId, signer, … })</code> in
-              <code>@fastnear/api</code>; the signer is bridged in via a structural
-              <code>TransactionSigner</code>, and <code>queryProtocolVersion()</code> gates on v85.
+              <code>@fastnear/api</code>. The signer already satisfies <code>TransactionSigner</code>
+              structurally — it has <code>publicKey</code> and <code>signHash()</code> — so you pass it
+              straight in with no adapter, and <code>queryProtocolVersion()</code> gates on v85.
+            </li>
+            <li>
+              Signers are in-memory by default. To restore one across restarts, rebuild it from
+              retained secret material with <code>signerFromSeed()</code> or
+              <code>signerFromSecretKey()</code>; <code>verifyHash()</code> checks a signature
+              offline.
             </li>
           </ul>
         </article>
@@ -173,10 +187,10 @@
     <section class="section-shell" id="quickstarts">
       <div class="section-header">
         <div class="section-kicker">Quickstarts</div>
-        <h2 class="section-title">Generate a signer, then send with it.</h2>
+        <h2 class="section-title">Generate a signer, enroll it, then send with it.</h2>
         <p class="section-summary">
-          The two core flows from the catalog (ESM). The full set — generate, explicit-send,
-          enroll-delete, reconcile — lives in the <code>mlDsa65</code> key of
+          The three steps of the happy path, in order, straight from the catalog (ESM). The full set —
+          generate, enroll, explicit-send, enroll-delete, reconcile — lives in the <code>mlDsa65</code> key of
           <a class="jump-link" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>.
         </p>
       </div>
@@ -214,6 +228,61 @@ try {
             <div class="code-actions">
               <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
               <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#pq-generate-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Enroll the public key with a classical AddKey</div>
+              <p class="code-card-context">
+                An ML-DSA-65 key cannot add itself — the <code>AddKey</code> is signed by an existing
+                classical full-access key. Pass the full <code>ml-dsa-65:</code> key, never the
+                <code>ml-dsa-65-hash:</code> handle.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="pq-enroll-snippet">import {
+  actions,
+  queryAccessKey,
+  queryProtocolVersion,
+  sendTx,
+} from "@fastnear/api";
+import { signerFromPrivateKey } from "@fastnear/utils";
+
+export async function enrollMlDsa65Key({ accountId, classicalPrivateKey, signer }) {
+  const protocolVersion = await queryProtocolVersion({ network: "testnet" });
+  if (protocolVersion &lt; 85) {
+    throw new Error(`testnet protocol ${protocolVersion} does not support ML-DSA-65`);
+  }
+
+  // The AddKey itself is signed by an existing classical full-access key.
+  const classicalSigner = signerFromPrivateKey(classicalPrivateKey);
+
+  await sendTx({
+    signerId: accountId,
+    signer: classicalSigner,
+    receiverId: accountId,
+    // Pass the full ml-dsa-65:&lt;base58&gt; key. Never the ml-dsa-65-hash: handle.
+    actions: [actions.addFullAccessKey({ publicKey: signer.publicKey })],
+    waitUntil: "FINAL",
+    network: "testnet",
+  });
+
+  // Read back with the full key: direct access-key lookup accepts it, while
+  // access-key list responses expose only signer.publicKeyHandle.
+  return queryAccessKey({
+    accountId,
+    publicKey: signer.publicKey,
+    blockId: "final",
+    network: "testnet",
+  });
+}</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#pq-enroll-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
             </div>
           </div>
         </article>
@@ -281,6 +350,12 @@ export async function sendOneYoctoWithMlDsa65({ accountId, signer }) {
             <li>
               Never print or persist generated seeds or expanded secret keys. Keep a temporary recovery
               record public-only: network, account ID, full public key, and hash handle.
+            </li>
+            <li>
+              Public keys, secret keys, and signatures all share the same <code>ml-dsa-65:</code>
+              prefix, so <code>exportSecretKey()</code> is indistinguishable by shape from
+              <code>signer.publicKey</code>. Tell them apart by decoded length (1,952 vs 4,032 bytes),
+              never by prefix.
             </li>
             <li>
               After an AddKey attempt, do not trust a single absence read: submit a finalized classical
