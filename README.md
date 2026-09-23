@@ -287,6 +287,7 @@ public/                    # The site root — serve this directory, not the rep
 
   transactions.html        # Topic — constructing a transaction (units in, strings out)
   meta-transactions.html   # Topic — NEP-366 delegate actions and relayers
+  gas-keys.html            # Topic — prepaid gas keys, nonce lanes (protocol 85+, @fastnear/api 2.4.0)
   accounts.html            # Topic — seed phrases, implicit and funded accounts
   intents.html             # Topic — NEAR Intents swaps (@fastnear/intents)
   x402.html                # Topic — x402 payments on NEAR (@fastnear/x402)

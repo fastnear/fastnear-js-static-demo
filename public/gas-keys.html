@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta content="width=device-width,initial-scale=1.0" name="viewport" />
+  <title>Gas keys on NEAR — FastNear JS</title>
+  <meta
+    content="Add a NEAR gas key with @fastnear/api (protocol 85+, NEP-611): an access key that pays gas from its own prepaid balance, can be funded by any account, and signs on up to 1,024 parallel nonce lanes. Add, fund, send, inspect, drain — local signing, no wallet."
+    name="description"
+  />
+  <link href="assets/favicon.png" rel="icon" type="image/png" />
+  <link href="https://fonts.googleapis.com" rel="preconnect" />
+  <link crossorigin href="https://fonts.gstatic.com" rel="preconnect" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+
+  <script>
+    (() => {
+      const storageKey = "theme";
+      const legacyStorageKey = "fastnear:theme";
+      const storedTheme = localStorage.getItem(storageKey) || localStorage.getItem(legacyStorageKey);
+      if (!localStorage.getItem(storageKey) && (storedTheme === "light" || storedTheme === "dark")) {
+        localStorage.setItem(storageKey, storedTheme);
+        localStorage.removeItem(legacyStorageKey);
+      }
+      if (storedTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    })();
+  </script>
+
+  <script type="module">
+    import { wireUpTopicPage } from "./page.js";
+
+    wireUpTopicPage();
+  </script>
+
+  <link href="style.css" rel="stylesheet" />
+
+  <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0c50ed3b94a1468199725e8c5d6df7ef"}'></script><!-- End Cloudflare Web Analytics -->
+</head>
+
+<body>
+  <header class="site-header">
+    <div class="top-header-shell">
+      <div class="brand-cluster">
+        <a class="site-brand" href="./">
+          <span aria-hidden="true" class="site-brand-logo">
+            <img
+              alt=""
+              class="site-brand-logo-image site-brand-logo-light"
+              height="56"
+              src="assets/fastnear_logo_black.png"
+              width="259"
+            />
+            <img
+              alt=""
+              class="site-brand-logo-image site-brand-logo-dark"
+              height="56"
+              src="assets/fastnear_logo_white.png"
+              width="259"
+            />
+          </span>
+          <span class="site-brand-copy">
+            <span class="site-brand-title">FastNear JS</span>
+            <span class="site-brand-subtitle">Agent-first NEAR RPC/API lib</span>
+          </span>
+        </a>
+      </div>
+
+      <div class="header-controls">
+        <button
+          aria-label="Toggle theme"
+          class="theme-toggle"
+          data-theme-toggle="true"
+          title="Switch to dark mode"
+          type="button"
+        ></button>
+      </div>
+    </div>
+    <nav class="topic-nav" aria-label="FastNear sections">
+      <div class="topic-nav-shell">
+        <a class="topic-nav-link" href="./">Home</a>
+        <span class="topic-nav-sep" aria-hidden="true">·</span>
+        <a class="topic-nav-link" href="./transactions.html">Transactions</a>
+        <span class="topic-nav-sep" aria-hidden="true">·</span>
+        <a class="topic-nav-link" href="./meta-transactions.html">Meta-tx</a>
+        <span class="topic-nav-sep" aria-hidden="true">·</span>
+        <a class="topic-nav-link is-active" aria-current="page" href="./gas-keys.html">Gas keys</a>
+        <span class="topic-nav-sep" aria-hidden="true">·</span>
+        <a class="topic-nav-link" href="./accounts.html">Accounts</a>
+        <span class="topic-nav-sep" aria-hidden="true">·</span>
+        <a class="topic-nav-link" href="./intents.html">Intents</a>
+        <span class="topic-nav-sep" aria-hidden="true">·</span>
+        <a class="topic-nav-link" href="./x402.html">x402</a>
+        <span class="topic-nav-sep" aria-hidden="true">·</span>
+        <a class="topic-nav-link" href="./post-quantum.html">Post-quantum</a>
+        <span class="topic-nav-sep" aria-hidden="true">·</span>
+        <a class="topic-nav-link" href="./retries.html">Retries</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="page-shell">
+    <section class="section-shell" id="overview">
+      <div class="section-header">
+        <div class="section-kicker">Gas keys</div>
+        <h2 class="section-title">An access key with its own gas balance.</h2>
+        <p class="section-summary">
+          A <strong>gas key</strong> is an ordinary access key with a balance of its own. Gas for anything the
+          key signs is paid from that balance, not from the account; attached deposits still come from the
+          account. Gas refunds return to the key, deposit refunds to the account. Any account can top the key
+          up with <code>TransferToGasKey</code>, so a sponsor can fund a user's key once and stay off the path
+          of every transaction after that. Each key also carries 1 to 1,024 independent <strong>nonce
+          lanes</strong>, so one key can sign in parallel. NEAR added both in
+          <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://github.com/near/NEPs/blob/master/neps/nep-0611.md" rel="noopener noreferrer" target="_blank">NEP-611</a>
+          (protocol version 85) so a transaction's fee can be guaranteed before it executes; a prepaid,
+          key-scoped balance does that and closes the drain-then-spam gap. Sponsored gas and parallel lanes
+          are what that guarantee hands to app developers.
+        </p>
+        <p class="section-summary">
+          Gas keys ship in <code>@fastnear/api</code> 2.4.0+ — <code>npm i @fastnear/api</code>, or
+          <code>&lt;script src="https://js.fastnear.com/<wbr>near.js"&gt;&lt;/script&gt;</code> for the
+          <code>near</code> global — with no extra package. The RPC you point at must report
+          <code>protocol_version</code> 85 or later; check with <code>near.queryProtocolVersion()</code>.
+          Mainnet and testnet both do at the time of writing. Everything on this page signs locally with
+          <code>sendTx({ signer, signerId })</code>.
+        </p>
+      </div>
+
+      <div class="docs-grid">
+        <article class="card">
+          <div class="card-kicker">The tank</div>
+          <ul class="hero-points">
+            <li>
+              Two permissions, added with the ordinary <code>AddKey</code> action:
+              <code>GasKeyFullAccess { balance, num_nonces }</code> and
+              <code>GasKeyFunctionCall { balance, num_nonces, allowance: null, receiver_id, method_names }</code>.
+              <code>balance</code> must start at <code>"0"</code> — you fund it afterwards.
+            </li>
+            <li>
+              A function-call gas key cannot carry an <code>allowance</code>: the balance is the allowance,
+              and an <code>AddKey</code> that sets one is rejected.
+            </li>
+            <li>
+              <code>TransferToGasKey { publicKey, deposit }</code> may be sent by <strong>any account</strong>;
+              the deposit leaves the sender, and the transaction's <code>receiverId</code> is the key's owner.
+              <code>WithdrawFromGasKey { publicKey, amount }</code> must be signed by the owner
+              (<code>signerId === receiverId</code>) and lands on the owner's account — a top-up is a gift to
+              the key; only the owner can take it back out, and only to itself.
+            </li>
+            <li>
+              Removal is the ordinary <code>DeleteKey</code>. It refuses if the key holds more than 1 NEAR and
+              burns whatever remains below that.
+            </li>
+            <li>
+              Everything out is a decimal string: <code>balance</code> is yoctoNEAR.
+              <code>near.gasKeyInfoFromPermission</code> takes the permission view and returns
+              <code>{ balance, num_nonces, functionCall }</code>, or <code>null</code> for a classical key.
+            </li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <div class="card-kicker">Lanes and the wire</div>
+          <ul class="hero-points">
+            <li>
+              <code>num_nonces</code> is 1..1024 independent nonce lanes. Lanes do not wait on each other;
+              sends on one lane are sequential. The <code>AddKey</code> fee grows with <code>numNonces</code>.
+            </li>
+            <li>
+              <code>sendTx({ signer, signerId, nonceIndex, nonceMode })</code> reads the key's permission from
+              <code>view_access_key</code>; on a <code>GasKey*</code> permission it signs a
+              <strong>TransactionV1</strong>: a <code>0x01</code> prefix, a
+              <code>GasKeyNonce { nonce, nonceIndex }</code>, and a trailing <code>NonceMode</code>. The default
+              lane is <code>0</code>.
+            </li>
+            <li>
+              <code>nonceMode: "monotonic"</code> (default) requires the nonce to exceed the stored one;
+              <code>"strict"</code> requires exactly stored + 1.
+            </li>
+            <li>
+              A gas key's <code>view_access_key</code> nonce is always <code>0</code>. Read the lanes with
+              <code>near.queryGasKeyNonces</code> (<code>request_type: "view_gas_key_nonces"</code> →
+              <code>{ nonces: [...] }</code>); a classical key answers <code>UNKNOWN_GAS_KEY</code>.
+            </li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <div class="card-kicker">Versus a relayer, versus an allowance</div>
+          <ul class="hero-points">
+            <li>
+              <a class="jump-link" href="./meta-transactions.html">NEP-366 meta-transaction</a>: the relayer
+              signs and pays each transaction, so it must be online for every one. Gas key: the sponsor sends
+              one <code>TransferToGasKey</code> and is not involved again until the tank runs low.
+            </li>
+            <li>
+              Function-call key <code>allowance</code>: still the account's own NEAR, spent from the account.
+              Gas key: a separate pot on the key that any account can refill.
+            </li>
+            <li>
+              The two do not compose: a gas key cannot sign a delegate action
+              (<code>near.signDelegate</code> refuses it), and <code>WithdrawFromGasKey</code> is refused
+              inside a delegate.
+            </li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="callout callout-warning callout-compact">
+        <span class="callout-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg></span>
+        <div class="callout-copy">
+          <strong class="callout-title">Before you start</strong>
+          <p class="callout-body">
+            Wallets do not expose gas keys yet: <code>@fastnear/wallet</code> and the wallet adapter refuse
+            gas-key actions and <code>nonceIndex</code> with an error, and <code>near.signDelegate</code>
+            refuses a gas-key signer — everything here signs locally with
+            <code>sendTx({ signer, signerId })</code>. And <code>DeleteKey</code> burns whatever balance the
+            key still holds (refusing above 1 NEAR), so drain with <code>WithdrawFromGasKey</code> first;
+            the last card below does both in one transaction.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-shell" id="quickstarts">
+      <div class="section-header">
+        <div class="section-kicker">Quickstarts</div>
+        <h2 class="section-title">Add, fund, send, inspect, drain.</h2>
+        <p class="section-summary">
+          Five cards, straight from the <code>gasKeys</code> block of
+          <a class="jump-link" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>
+          (ESM), in lifecycle order. Read the first three as one story: the <strong>sponsored counter</strong>.
+          A user account adds a gas key scoped to <code>count.mike.testnet</code> / <code>increase</code> — the
+          contract the <a class="jump-link" href="./">home-page demo</a> already calls. A different account,
+          the sponsor, funds it with <code>TransferToGasKey</code>. The user's client then calls
+          <code>increase</code> signed by the gas key: the user's account balance is unchanged by the call,
+          the key's balance drops by the gas burnt, and the gas refund lands back on the key. The sponsor is
+          not on the path of that call and is only involved again when the tank needs topping up — and any
+          account, not just the original sponsor, can do that.
+        </p>
+        <p class="section-summary">
+          Then read the third and fourth cards again as the <strong>lanes</strong> story. A key added with
+          <code>numNonces: 4</code> has four independent nonces. <code>Promise.all</code> over
+          <code>nonceIndex</code> 0 through 3 sends four transactions at once; <code>queryGasKeyNonces</code>
+          before and after shows each lane advanced by one. A classical key serializes every send on its
+          single nonce. A gas key gives one signer many workers — the shape backends and agents want.
+        </p>
+      </div>
+
+      <div class="console-card-grid">
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Add a full-access gas key</div>
+              <p class="code-card-context">
+                Signed by an existing full-access key like any <code>AddKey</code>, after gating on
+                <code>protocolVersion</code>. The permission reads back as
+                <code>{ GasKeyFullAccess: { balance: "0", num_nonces: 4 } }</code>. For the sponsored
+                counter, swap the action for
+                <code>near.actions.addLimitedAccessGasKey({ publicKey, numNonces, accountId: "count.mike.testnet", methodNames: ["increase"] })</code>
+                — the balance still starts at <code>"0"</code>, and there is no <code>allowance</code> to set.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="gk-add-snippet">import { actions, queryAccessKey, queryProtocolVersion, sendTx } from "@fastnear/api";
+import { privateKeyFromRandom, signerFromPrivateKey } from "@fastnear/utils";
+
+export async function addGasKey({ accountId, ownerSigner, numNonces = 4 }) {
+  const protocolVersion = await queryProtocolVersion({ network: "testnet" });
+  if (protocolVersion &lt; 85) {
+    throw new Error(`testnet protocol ${protocolVersion} does not support gas keys`);
+  }
+
+  // A gas key is an ordinary ed25519 key pair; only its permission differs.
+  const gasKeyPrivateKey = privateKeyFromRandom("ed25519");
+  const gasSigner = signerFromPrivateKey(gasKeyPrivateKey);
+
+  await sendTx({
+    signerId: accountId,
+    signer: ownerSigner,
+    receiverId: accountId,
+    // numNonces = independent transaction lanes (1..1024); the AddKey fee grows with it.
+    actions: [actions.addFullAccessGasKey({ publicKey: gasSigner.publicKey, numNonces })],
+    waitUntil: "FINAL",
+    network: "testnet",
+  });
+
+  const view = await queryAccessKey({
+    accountId,
+    publicKey: gasSigner.publicKey,
+    blockId: "final",
+    network: "testnet",
+  });
+  // view.result.permission -&gt; { GasKeyFullAccess: { balance: "0", num_nonces: 4 } }
+  return { gasKeyPrivateKey, publicKey: gasSigner.publicKey, permission: view.result.permission };
+}</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#gk-add-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Fund it from any account</div>
+              <p class="code-card-context">
+                The sponsor's only transaction. <code>signerId</code> is the funder and <code>receiverId</code>
+                is the key's owner; they may differ, and the <code>deposit</code> leaves the funder. The
+                read-back goes through <code>gasKeyInfoFromPermission</code>, which returns
+                <code>null</code> for a classical key; <code>balance</code> is a yoctoNEAR decimal string.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="gk-fund-snippet">import { actions, gasKeyInfoFromPermission, queryAccessKey, sendTx } from "@fastnear/api";
+
+export async function fundGasKey({ funderId, funderSigner, accountId, publicKey, amount = "0.05 NEAR" }) {
+  await sendTx({
+    signerId: funderId,
+    signer: funderSigner,
+    receiverId: accountId,
+    actions: [actions.transferToGasKey({ publicKey, deposit: amount })],
+    waitUntil: "FINAL",
+    network: "testnet",
+  });
+
+  const view = await queryAccessKey({ accountId, publicKey, blockId: "final", network: "testnet" });
+  const info = gasKeyInfoFromPermission(view.result.permission);
+  if (!info) throw new Error(`${publicKey} is not a gas key on ${accountId}`);
+  return info.balance; // yoctoNEAR decimal string
+}</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#gk-fund-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Send with the gas key</div>
+              <p class="code-card-context">
+                The user's transaction. <code>signer</code> is the gas key, <code>signerId</code> is the user, and
+                <code>nonceIndex</code> picks the lane (default <code>0</code>); <code>sendTx</code> sees the
+                <code>GasKey*</code> permission and signs a TransactionV1. For the counter,
+                <code>receiverId</code> is <code>count.mike.testnet</code> and <code>methodName</code> is
+                <code>increase</code>. <code>sendOnTwoLanes</code> is the lanes story in two lines — widen
+                <code>[0, 1]</code> to <code>[0, 1, 2, 3]</code> for a key added with <code>numNonces: 4</code>.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="gk-send-snippet">import { actions, queryGasKeyNonces, sendTx } from "@fastnear/api";
+
+export async function sendWithGasKey({ accountId, gasSigner, receiverId, nonceIndex = 0 }) {
+  const result = await sendTx({
+    signerId: accountId,
+    signer: gasSigner,
+    receiverId,
+    actions: [actions.functionCall({ methodName: "ping", args: {}, gas: "30 Tgas", deposit: "0" })],
+    nonceIndex,
+    waitUntil: "FINAL",
+    network: "testnet",
+  });
+
+  const nonces = await queryGasKeyNonces({
+    accountId,
+    publicKey: gasSigner.publicKey,
+    blockId: "final",
+    network: "testnet",
+  });
+  return { txHash: result.transaction?.hash ?? null, nonces: nonces.result.nonces };
+}
+
+// Lanes are independent nonce sequences, so these do not serialize behind each other.
+export const sendOnTwoLanes = (params) =&gt;
+  Promise.all([0, 1].map((nonceIndex) =&gt; sendWithGasKey({ ...params, nonceIndex })));</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#gk-send-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Inspect balance and lanes</div>
+              <p class="code-card-context">
+                Three reads at finality: <code>view_access_key</code> for balance, lane count, and function-call
+                scope; <code>view_gas_key_nonces</code> for one nonce per lane; the key list to confirm the key
+                is present. Run it before and after <code>sendOnTwoLanes</code> to watch lanes 0 and 1 each
+                advance by one. <code>queryAccessKeyList</code> now paginates — pass <code>limit</code> and page
+                with <code>afterKey</code>; more than 100 keys is refused unpaginated.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="gk-inspect-snippet">import {
+  gasKeyInfoFromPermission,
+  queryAccessKey,
+  queryAccessKeyList,
+  queryGasKeyNonces,
+} from "@fastnear/api";
+
+export async function inspectGasKey({ accountId, publicKey }) {
+  const [direct, lanes, list] = await Promise.all([
+    queryAccessKey({ accountId, publicKey, blockId: "final", network: "testnet" }),
+    queryGasKeyNonces({ accountId, publicKey, blockId: "final", network: "testnet" }),
+    queryAccessKeyList({ accountId, blockId: "final", network: "testnet" }),
+  ]);
+  const info = gasKeyInfoFromPermission(direct.result.permission);
+  if (!info) throw new Error(`${publicKey} is not a gas key on ${accountId}`);
+  return {
+    balance: info.balance,
+    numNonces: info.num_nonces,
+    nonces: lanes.result.nonces,
+    // Set only for GasKeyFunctionCall keys.
+    receiverId: info.functionCall?.receiver_id ?? null,
+    listed: list.result.keys.some((key) =&gt; key.public_key === publicKey),
+  };
+}</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#gk-inspect-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Drain, then delete</div>
+              <p class="code-card-context">
+                One batched transaction signed by the owning account — <code>WithdrawFromGasKey</code> cannot be
+                signed by anyone else. The withdraw is skipped when the balance is already <code>0</code>.
+                <code>DeleteKey</code> refuses above 1 NEAR and burns anything below it, so the order inside
+                the batch matters.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="gk-withdraw-delete-snippet">import { actions, gasKeyInfoFromPermission, queryAccessKey, sendTx } from "@fastnear/api";
+
+export async function withdrawAndDeleteGasKey({ accountId, ownerSigner, publicKey }) {
+  const view = await queryAccessKey({ accountId, publicKey, blockId: "final", network: "testnet" });
+  const info = gasKeyInfoFromPermission(view.result.permission);
+  if (!info) throw new Error(`${publicKey} is not a gas key on ${accountId}`);
+
+  // DeleteKey fails above 1 NEAR and burns anything below it, so withdraw first.
+  // WithdrawFromGasKey must be signed by the owning account itself.
+  const drain = BigInt(info.balance) &gt; 0n
+    ? [actions.withdrawFromGasKey({ publicKey, amount: info.balance })]
+    : [];
+  await sendTx({
+    signerId: accountId,
+    signer: ownerSigner,
+    receiverId: accountId,
+    actions: [...drain, actions.deleteKey({ publicKey })],
+    waitUntil: "FINAL",
+    network: "testnet",
+  });
+
+  const after = await queryAccessKey({ accountId, publicKey, blockId: "final", network: "testnet" });
+  if (!/UnknownAccessKey|does not exist/i.test(after.result.error ?? "")) {
+    throw new Error("gas key still present");
+  }
+}</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#gk-withdraw-delete-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-shell" id="safety">
+      <div class="section-header">
+        <div class="section-kicker">Safety rules</div>
+        <h2 class="section-title">Gate on the protocol, read at finality, drain before you delete.</h2>
+        <p class="section-summary">
+          These rules come from the machine-readable catalog — agents and humans should apply the same ones.
+        </p>
+      </div>
+
+      <div class="docs-grid">
+        <article class="card">
+          <div class="card-kicker">Activation and key material</div>
+          <ul class="hero-points">
+            <li>
+              Check the selected RPC's active <code>protocol_version</code> and require 85 or later before
+              adding or using a gas key; do not use node software versions as the activation signal.
+            </li>
+            <li>
+              Treat the gas key's private key like any signing secret. Keep recovery records public-only:
+              network, account ID, public key.
+            </li>
+            <li>
+              The balance is the only spend limit on a gas key, and any account can raise it with
+              <code>TransferToGasKey</code>. If the key must not sign arbitrary actions, scope it with
+              <code>GasKeyFunctionCall</code>'s <code>receiver_id</code> and <code>method_names</code>.
+            </li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <div class="card-kicker">Reads and lifecycle</div>
+          <ul class="hero-points">
+            <li>
+              Read balances and lane nonces at finality (<code>blockId: "final"</code>) after a
+              <code>waitUntil: "FINAL"</code> send before asserting on them; the default query finality is
+              optimistic.
+            </li>
+            <li>
+              Drain with <code>WithdrawFromGasKey</code> before <code>DeleteKey</code>. A gas refund that lands
+              after your balance read is burnt on deletion; the loss is bounded by 1 NEAR because
+              <code>DeleteKey</code> refuses above that.
+            </li>
+            <li>
+              Gas keys cannot sign NEP-366 delegate actions, and <code>WithdrawFromGasKey</code> is refused
+              inside a delegate. Do not route gas-key traffic through a relayer.
+            </li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="callout callout-info callout-compact">
+        <span class="callout-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg></span>
+        <div class="callout-copy">
+          <strong class="callout-title">Go deeper</strong>
+          <p class="callout-body">
+            AI agents: the <code>gasKeys</code> key in
+            <a class="jump-link" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>
+            carries all five quickstarts (<code>gas-key-add</code>, <code>gas-key-fund</code>,
+            <code>gas-key-send</code>, <code>gas-key-inspect</code>, <code>gas-key-withdraw-delete</code>) plus
+            the <code>limits</code>, <code>permissionViews</code>, <code>rpc</code>, <code>builders</code>,
+            <code>rules</code>, and <code>safety</code> on this page. The protocol change is
+            <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://github.com/near/NEPs/blob/master/neps/nep-0611.md" rel="noopener noreferrer" target="_blank">NEP-611</a>.
+            For a relayer-paid flow instead, see
+            <a class="jump-link" href="./meta-transactions.html">meta-transactions</a>; the API lives in
+            <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://www.npmjs.com/package/@fastnear/api" rel="noopener noreferrer" target="_blank">@fastnear/api on npm</a>.
+            Rate-limited? Free trial credits are at
+            <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://dashboard.fastnear.com" rel="noopener noreferrer" target="_blank">dashboard.fastnear.com</a>.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-nav">
+      <nav aria-label="FastNear topic pages" class="footer-nav-group">
+        <span class="nav-label">Topics</span>
+        <a class="nav-link jump-link" href="./transactions.html">Constructing a transaction</a>
+        <a class="nav-link jump-link" href="./meta-transactions.html">Gasless meta-transactions</a>
+        <a class="nav-link jump-link" href="./gas-keys.html">Prepaid gas keys</a>
+        <a class="nav-link jump-link" href="./accounts.html">Keys &amp; accounts</a>
+        <a class="nav-link jump-link" href="./intents.html">NEAR Intents</a>
+        <a class="nav-link jump-link" href="./x402.html">x402 payments</a>
+        <a class="nav-link jump-link" href="./post-quantum.html">Post-quantum keys</a>
+        <a class="nav-link jump-link" href="./retries.html">Retries &amp; bulk reads</a>
+      </nav>
+
+      <nav aria-label="FastNear docs" class="footer-nav-group">
+        <span class="nav-label">Docs</span>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/rpc" rel="noopener noreferrer" target="_blank">RPC</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/api" rel="noopener noreferrer" target="_blank">API</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/tx" rel="noopener noreferrer" target="_blank">Transactions</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/transfers" rel="noopener noreferrer" target="_blank">Transfers</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/neardata" rel="noopener noreferrer" target="_blank">NEAR Data</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/fastdata/kv" rel="noopener noreferrer" target="_blank">FastData KV</a>
+      </nav>
+
+      <nav aria-label="FastNear resources" class="footer-nav-group">
+        <span class="nav-label">Resources</span>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/agents" rel="noopener noreferrer" target="_blank">Agents</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://docs.fastnear.com/auth" rel="noopener noreferrer" target="_blank">Auth</a>
+        <a class="nav-link jump-link" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>
+        <a class="nav-link jump-link" href="./agents.js" rel="noopener noreferrer" target="_blank">agents.js</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://www.npmjs.com/package/@fastnear/api" rel="noopener noreferrer" target="_blank">npm</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://github.com/fastnear/js-monorepo" rel="noopener noreferrer" target="_blank">GitHub</a>
+        <a class="nav-link jump-link external-link-indicator external-link-indicator-pill" href="https://dashboard.fastnear.com" rel="noopener noreferrer" target="_blank">FastNear Dashboard</a>
+      </nav>
+    </div>
+    <div class="footer-shell">
+      <span>FastNear JS for agents and developers</span>
+      <span>Powered by generated tasks from the FastNear JS monorepo</span>
+    </div>
+  </footer>
+</body>
+</html>

@@ -29,6 +29,9 @@ public/
   index.html              # Entry point — loads IIFE globals + ES module
   index.js                # App logic: wireUpAppEarly() + wireUpAppLate()
   transactions.html       # Topic page — constructing a transaction (units in, strings out)
+  meta-transactions.html  # Topic page — NEP-366 delegate actions and relayers
+  gas-keys.html           # Topic page — prepaid gas keys + nonce lanes (protocol 85+, 2.4.0)
+  accounts.html           # Topic page — seed phrases, implicit and funded accounts
   intents.html            # Topic page — NEAR Intents swaps (@fastnear/intents)
   x402.html               # Topic page — x402 payments on NEAR (@fastnear/x402)
   post-quantum.html       # Topic page — ML-DSA-65 post-quantum keys
@@ -90,12 +93,13 @@ unreachable. See the README for the exact incantation.
 
 ### Topic pages (static explainers)
 
-`transactions.html`, `intents.html`, `x402.html`, `post-quantum.html`, and
-`retries.html` are standalone static explainers for humans and AI agents.
+`transactions.html`, `meta-transactions.html`, `gas-keys.html`, `accounts.html`,
+`intents.html`, `x402.html`, `post-quantum.html`, and `retries.html` are
+standalone static explainers for humans and AI agents.
 They do NOT load `index.js` (the demo-app module); their only script is
 `page.js` (`wireUpTopicPage()`: theme toggle sharing the same `theme`
 localStorage key as the main page, plus code-card copy/wrap buttons). All
-six pages (plus the home page) share a slim `topic-nav` strip under the
+eight pages (plus the home page) share a slim `topic-nav` strip under the
 header — mark the current page's link `is-active`/`aria-current="page"` and
 add any new page to every page's strip and footer Topics nav. Content stays
 verbatim-close to the generated catalog (`recipes.json` quickstarts) so
@@ -156,7 +160,7 @@ These are configured in the near-connect MNW executor (`near-wallets/src/mnw.ts`
 
 ## Dependencies
 
-All `@fastnear/*` packages version in lockstep (currently `2.0.0`; the 2.0.0
+All `@fastnear/*` packages version in lockstep (currently `2.4.0`; the 2.0.0
 major made borsh `deserialize` return u64/u128 as decimal strings — "wide
 integers are strings" across the whole surface). Bump flow
 in the monorepo: set the root `package.json` version, then `yarn constraints
@@ -165,6 +169,7 @@ to main as the release commit and tag it.
 
 - **`@fastnear/api`** — NEAR blockchain API, loaded as IIFE global (`window.near`)
 - **`@fastnear/wallet`** — Multi-wallet connector, loaded as IIFE global (`window.nearWallet`); wraps `@fastnear/near-connect`
+- **Gas keys** (2.4.0, protocol 85, NEP-611) — prepaid-gas access keys: `near.actions.addFullAccessGasKey` / `addLimitedAccessGasKey` / `transferToGasKey` / `withdrawFromGasKey`, `near.queryGasKeyNonces`, `near.gasKeyInfoFromPermission`, and `sendTx({ nonceIndex, nonceMode })` (TransactionV1). **Local-signing only** — `@fastnear/wallet` and near-connect refuse gas-key shapes, so the demo's wallet buttons cannot use them; `gas-keys.html` documents them and mirrors the `gasKeys` block of `recipes.json`
 - **`@fastnear/intents`** (referenced by the intents topic page, not loaded by the demo) — NEAR Intents: 1Click swaps, NEP-413 intent signing, verifier helpers; IIFE global `window.nearIntents` via `/intents.js`
 - **`@fastnear/x402`**, **`@fastnear/ml-dsa-65`** — opt-in packages referenced by their topic pages
 
