@@ -12,6 +12,9 @@
     "sync-agent-artifacts": "node scripts/sync-agent-artifacts.mjs"
   },
   "devDependencies": {
+    "@near-js/crypto": "^2.5.1",
+    "@near-js/signers": "^2.5.1",
+    "@near-js/transactions": "^2.5.1",
     "playwright": "^1.48.0"
   }
 }

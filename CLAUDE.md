@@ -179,7 +179,7 @@ Loaded via bare unpkg URLs (no pinned version), e.g. `https://unpkg.com/@fastnea
 ## Related Repositories
 
 - **fastnear-js-monorepo** (`/Users/mikepurvis/near/fastnear-js-monorepo`) — Source of `@fastnear/api`, `@fastnear/wallet` packages. Key file: `packages/wallet/src/connector.ts` (`getOrCreateConnector()` wires options including `walletConnect` through to `NearConnector`).
-- **near-connect** (`/Users/mikepurvis/near/fn/near-connect`) — Source of `@fastnear/near-connect`. Contains wallet executors (`near-wallets/src/`), the `NearConnector` class (`src/NearConnector.ts`), popup UI (`src/popups/`), and built executor bundles (`repository/*.js`). After modifying executor source, rebuild with `cd near-wallets && yarn build:mnw` (or `build:wallets` for all), then push `repository/` to `main`.
+- **near-connect** (`/Users/mikepurvis/near/fn/near-connect`) — Source of `@fastnear/near-connect`. Contains wallet executors (`near-wallets/src/`), the `NearConnector` class (`src/NearConnector.ts`), popup UI (`src/popups/`), and built executor bundles (`repository/*.js`). After modifying executor source, rebuild with `cd near-wallets && yarn build:meteor` (or `build:wallets` for all), then push `repository/` to `main`.
 
 ## Debugging Tips
 
