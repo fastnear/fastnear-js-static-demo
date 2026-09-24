@@ -383,9 +383,12 @@ console.log(intentHash);</code></pre>
               <code>nearWallet.signMessage</code> (NEP-413), which every wallet in the connector's
               manifest implements. The solver relay
               (<code>@fastnear/intents/relay</code>) is wired and typed, but its quotes require a
-              partner API key in practice — the 1Click path is the default. The funded end-to-end
-              swap path is verified against the mainnet smoke runbook
-              (<code>packages/intents/MAINNET_QA.md</code>) before being documented further.
+              partner API key in practice — the 1Click path is the default. The funded
+              deposit-and-swap path through a wallet was verified on mainnet on 2026-09-24 (Meteor
+              Wallet in the near-connect example: one <code>wrap.near</code> transaction that
+              registers storage, wraps and transfers, 0.05 NEAR → 0.226376 USDC); the local-key path
+              is re-verified by the mainnet smoke runbook (<code>packages/intents/MAINNET_QA.md</code>)
+              before each release.
             </p>
           </div>
         </div>
