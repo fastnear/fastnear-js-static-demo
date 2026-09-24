@@ -158,7 +158,7 @@ These are configured in the near-connect executors' shared RPC client (`near-wal
 
 ## Dependencies
 
-All `@fastnear/*` packages version in lockstep (currently `2.4.0`; the 2.0.0
+All `@fastnear/*` packages version in lockstep (currently `2.5.0`; the 2.0.0
 major made borsh `deserialize` return u64/u128 as decimal strings — "wide
 integers are strings" across the whole surface). Bump flow
 in the monorepo: set the root `package.json` version, then `yarn constraints
@@ -167,7 +167,7 @@ to main as the release commit and tag it.
 
 - **`@fastnear/api`** — NEAR blockchain API, loaded as IIFE global (`window.near`)
 - **`@fastnear/wallet`** — Multi-wallet connector, loaded as IIFE global (`window.nearWallet`); wraps `@fastnear/near-connect`
-- **Gas keys** (2.4.0, protocol 85, NEP-611) — prepaid-gas access keys: `near.actions.addFullAccessGasKey` / `addLimitedAccessGasKey` / `transferToGasKey` / `withdrawFromGasKey`, `near.queryGasKeyNonces`, `near.gasKeyInfoFromPermission`, and `sendTx({ nonceIndex, nonceMode })` (TransactionV1). **Local-signing only** — `@fastnear/wallet` and near-connect refuse gas-key shapes, so the demo's wallet buttons cannot use them; `gas-keys.html` documents them and mirrors the `gasKeys` block of `recipes.json`
+- **Gas keys** (2.4.0, protocol 85, NEP-611) — prepaid-gas access keys: `near.actions.addFullAccessGasKey` / `addLimitedAccessGasKey` / `transferToGasKey` / `withdrawFromGasKey`, `near.queryGasKeyNonces`, `near.gasKeyInfoFromPermission`, and `sendTx({ nonceIndex, nonceMode })` (TransactionV1). Signing *with* a gas key is local-only; adding, funding and draining one through a wallet works with `@fastnear/wallet` 2.5.0+ and a near-connect 0.14.1+ wallet flagged `features.gasKeys` (Meteor, verified 2026-09-24). `gas-keys.html` documents them and mirrors the `gasKeys` block of `recipes.json`
 - **`@fastnear/intents`** (referenced by the intents topic page, not loaded by the demo) — NEAR Intents: 1Click swaps, NEP-413 intent signing, verifier helpers; IIFE global `window.nearIntents` via `/intents.js`
 - **`@fastnear/x402`**, **`@fastnear/ml-dsa-65`** — opt-in packages referenced by their topic pages
 
