@@ -1674,6 +1674,7 @@ body.is-signed-in .hero-shell { order: 2; }
     align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
+    min-width: 0;
     padding: 0.95rem 1rem;
     background: var(--card-background);
     border-bottom: 1px solid var(--code-border);
@@ -1693,8 +1694,19 @@ body.is-signed-in .hero-shell { order: 2; }
     margin: 0.38rem 0 0;
 }
 
+.code-card-head > div {
+    min-width: 0;
+}
+
+/* Inline code in prose: a long identifier or URL breaks instead of widening the page.
+   Code cards keep their own horizontal scroll (pre > code is excluded). */
+:not(pre) > code {
+    overflow-wrap: anywhere;
+}
+
 .code-card-context {
     font-size: 0.94rem;
+    overflow-wrap: anywhere;
 }
 
 .code-card-meta {
@@ -2097,7 +2109,8 @@ body.is-signed-in .hero-shell { order: 2; }
 .console-card-grid {
     display: grid;
     gap: 0.9rem;
-    grid-template-columns: 1fr;
+    /* minmax(0, 1fr): a long inline token in a card must not widen the page */
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .console-card .code-card-head {
