@@ -600,7 +600,8 @@
             </li>
             <li>
               Drain with <code>WithdrawFromGasKey</code> before <code>DeleteKey</code>, which burns what's left
-              (refusing above 1 NEAR). Wallets don't expose gas keys yet — local signing only.
+              (refusing above 1 NEAR). Adding, funding and draining through a wallet needs one that advertises
+              <code>features.gasKeys</code> in near-connect — Meteor today; signing with the key stays local.
             </li>
           </ul>
         </article>
@@ -655,7 +656,8 @@ export const sendOnTwoLanes = (params) =&gt;
             <strong class="callout-title">Local signing, protocol 85</strong>
             <p class="callout-body">
               Gas keys need an RPC on protocol version 85 or later (<code>queryProtocolVersion()</code>)
-              and sign locally — <code>@fastnear/wallet</code> refuses gas-key shapes for now. Read the
+              — signing with one is local, while adding, funding and draining through a wallet works with
+              <code>@fastnear/wallet</code> 2.5.0+ and Meteor (near-connect <code>features.gasKeys</code>). Read the
               <a class="jump-link" href="./gas-keys.html">full explainer</a> for the sponsored-counter and
               lanes walkthroughs, the wire format, and the drain-before-delete rule. All five quickstarts —
               add, fund, send, inspect, withdraw-delete — live under <code>gasKeys</code> in

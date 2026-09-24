@@ -64,7 +64,7 @@
       {
         "url": "https://js.fastnear.com/gas-keys.html",
         "topic": "Gas keys",
-        "summary": "Prepaid-gas access keys (protocol 85+): add, fund, sign on nonce lanes, inspect, and drain + delete with @fastnear/api; who pays what, and why wallets don't expose them yet."
+        "summary": "Prepaid-gas access keys (protocol 85+): add, fund, sign on nonce lanes, inspect, and drain + delete with @fastnear/api; who pays what, and how wallets gate the add/fund/drain actions (near-connect features.gasKeys — Meteor first)."
       },
       {
         "url": "https://js.fastnear.com/accounts.html",
@@ -130,8 +130,8 @@
       "code": "# Assumes FASTNEAR_API_KEY is already set in your shell.\nACCOUNT_SUMMARY=\"$(node -e \"$(curl -fsSL https://js.fastnear.com/agents.js)\" <<'EOF'\nconst account = await near.recipes.viewAccount(\"root.near\");\n\nconst { block_hash, storage_usage } = account;\n\nnear.print({ block_hash, storage_usage });\nEOF\n)\"\nBLOCK_HASH=\"$(printf '%s\\n' \"$ACCOUNT_SUMMARY\" | jq -r '.block_hash')\"\nSTORAGE_USAGE=\"$(printf '%s\\n' \"$ACCOUNT_SUMMARY\" | jq -r '.storage_usage')\"\n\nprintf 'block_hash=%s\\nstorage_usage=%s\\n' \"$BLOCK_HASH\" \"$STORAGE_USAGE\""
     },
     "versions": {
-      "current": "2.4.0",
-      "policy": "All @fastnear/* packages share one version. The hosted /*.js aliases and bare unpkg URLs resolve to the latest release; pin an exact version in production (for example https://unpkg.com/@fastnear/api@2.4.0/dist/umd/browser.global.js)."
+      "current": "2.5.0",
+      "policy": "All @fastnear/* packages share one version. The hosted /*.js aliases and bare unpkg URLs resolve to the latest release; pin an exact version in production (for example https://unpkg.com/@fastnear/api@2.5.0/dist/umd/browser.global.js)."
     }
   },
   "families": [
@@ -2595,7 +2595,7 @@
   "gasKeys": {
     "package": "@fastnear/api",
     "protocolVersion": 85,
-    "runtime": "Node.js 20.19+ or a modern browser; local-key signing via sendTx({ signer, signerId }). Wallet providers do not yet expose gas keys.",
+    "runtime": "Node.js 20.19+ or a modern browser. Signing WITH a gas key (nonceIndex, TransactionV1) is local-key signing via sendTx({ signer, signerId }). Adding, funding and draining one through a wallet works with @fastnear/wallet 2.5.0+ (near-connect 0.14.1+), and only for wallets whose manifest sets features.gasKeys — Meteor Wallet, verified on testnet on 2026-09-24; the connector refuses the actions for wallets without the flag rather than risk a downgraded key.",
     "scope": "Prepaid-gas access keys: gas is charged to the key's own balance, deposits still come from the account, and gas refunds return to the key.",
     "limits": {
       "minNonces": 1,
