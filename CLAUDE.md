@@ -79,7 +79,7 @@ unreachable. See the README for the exact incantation.
 
 ### Key Functions (index.js)
 
-- **`wireUpAppEarly()`** — Configures `near` API and calls `nearWallet.restore()` to re-hydrate any previous wallet session. Both `restore()` and `connect()` pass `contractId` and `walletConnect` config so redirect wallets (MyNEARWallet) add/find FunctionCall access keys.
+- **`wireUpAppEarly()`** — Configures `near` API and calls `nearWallet.restore()` to re-hydrate any previous wallet session. Both `restore()` and `connect()` pass `contractId` and `walletConnect` config so wallets that support sign-in with a contract add/find FunctionCall access keys.
 - **`wireUpAppLate()`** — Sets up DOM event handlers (Sign In, Sign Out, Buy Tokens, Draw Pixel), registers `nearWallet.onConnect`/`onDisconnect` listeners, and calls `updateUI()`.
 
 ### Session Persistence
@@ -112,9 +112,9 @@ monorepo's `recipes/source.mjs` (rendered into hosted `llms.txt`).
 
 ### Wallet Manifest (`manifest.json`)
 
-Local manifest listing 7 wallets: MyNearWallet, Intear Wallet, Meteor Wallet, OKX Wallet, NEAR Mobile, Nightly Wallet, and Wallet Connect. Each entry specifies an `executor` URL (JS loaded into a sandboxed `about:srcdoc` iframe by near-connect) and `permissions`.
+Local manifest listing 6 wallets: Intear Wallet, Meteor Wallet, OKX Wallet, NEAR Mobile, Nightly Wallet, and Wallet Connect. MyNearWallet was removed on 2026-09-23 ahead of its 2026-10-31 sunset. Each entry specifies an `executor` URL (JS loaded into a sandboxed `about:srcdoc` iframe by near-connect) and `permissions`.
 
-Five of the seven executor URLs point to `https://raw.githubusercontent.com/fastnear/near-connect/refs/heads/main/repository/<wallet>.js` — they track the `main` branch and update automatically when the built files are pushed. Intear (`wallet.intear.tech/near-selector.js`) and Meteor (`raw.githubusercontent.com/Meteor-Wallet/meteor_wallet_sdk/data-storage/...`) host their own executors on infrastructure we don't control; if either host breaks, sign-in via that wallet breaks with no change visible in this repo.
+Four of the six executor URLs point to `https://raw.githubusercontent.com/fastnear/near-connect/refs/heads/main/repository/<wallet>.js` — they track the `main` branch and update automatically when the built files are pushed. Intear (`wallet.intear.tech/near-selector.js`) and Meteor (`raw.githubusercontent.com/Meteor-Wallet/meteor_wallet_sdk/data-storage/...`) host their own executors on infrastructure we don't control; if either host breaks, sign-in via that wallet breaks with no change visible in this repo.
 
 ### WalletConnect
 
@@ -136,14 +136,12 @@ contract whose action the demo most wants to be silent:
   signs silently.
 
 The FCK target is determined by `signInFckContractFor(network)` in
-`public/index.js` and exposed via `walletOptions.contractId`. When
-signing in via MyNearWallet, the executor generates a key pair, stores
-the private key in the sandboxed iframe's localStorage as
-`functionCallKey`, and MNW signs an on-chain `AddKey` redirect. On
-sign-out, MNW collects every key it knows about (the legacy
-`functionCallKey` plus any `functionCallKey:<contractId>` entries) and
-bundles all DeleteKey actions into one popup-confirmed tx (see the
-`@fastnear/near-connect` MNW executor).
+`public/index.js` and exposed via `walletOptions.contractId`. How the
+key pair is minted and later revoked is executor-specific: Meteor's app
+builds the `AddKey` from the login request, and Near Mobile's adapter
+sends an explicit `AddKey`; either way the private key lives in the
+sandboxed iframe's localStorage (see the `@fastnear/near-connect`
+executors).
 
 The wallet also exports `nearWallet.addFunctionCallKey({ contractId, methodNames, ... })`
 for cases that need an additional FCK on a
@@ -156,7 +154,7 @@ The canonical RPC endpoints are:
 - **Mainnet:** `https://rpc.mainnet.fastnear.com`
 - **Testnet:** `https://rpc.testnet.fastnear.com`
 
-These are configured in the near-connect MNW executor (`near-wallets/src/mnw.ts` and `near-wallets/src/utils/rpc.ts`). Using multiple out-of-sync RPC providers causes "Transaction parent block hash doesn't belong to the current chain" errors — always use a single consistent endpoint.
+These are configured in the near-connect executors' shared RPC client (`near-wallets/src/utils/rpc.ts`). Using multiple out-of-sync RPC providers causes "Transaction parent block hash doesn't belong to the current chain" errors — always use a single consistent endpoint.
 
 ## Dependencies
 
