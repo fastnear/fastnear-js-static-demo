@@ -111,16 +111,21 @@
         <div class="section-kicker">Gas keys</div>
         <h2 class="section-title">An access key with its own gas balance.</h2>
         <p class="section-summary">
-          A <strong>gas key</strong> is an ordinary access key with a balance of its own. Gas for anything the
-          key signs is paid from that balance, not from the account; attached deposits still come from the
-          account. Gas refunds return to the key, deposit refunds to the account. Any account can top the key
-          up with <code>TransferToGasKey</code>, so a sponsor can fund a user's key once and stay off the path
-          of every transaction after that. Each key also carries 1 to 1,024 independent <strong>nonce
-          lanes</strong>, so one key can sign in parallel. NEAR added both in
+          A <strong>gas key</strong> is an ordinary access key with a NEAR balance of its own. Gas for anything
+          the key signs is paid from that balance, not from the account; attached deposits still come from the
+          account. Gas refunds return to the key, deposit refunds to the account.
+        </p>
+        <p class="section-summary">
+          Two things follow. Any account can top the key up with <code>TransferToGasKey</code>, so an app can
+          pay a user's gas without running a relayer: fund once, then stay out of the way. And each key carries
+          1 to 1,024 independent <strong>nonce lanes</strong>, so one key can send in parallel without nonce
+          collisions.
+        </p>
+        <p class="section-summary">
+          NEAR added gas keys in
           <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://github.com/near/NEPs/blob/master/neps/nep-0611.md" rel="noopener noreferrer" target="_blank">NEP-611</a>
-          (protocol version 85) so a transaction's fee can be guaranteed before it executes; a prepaid,
-          key-scoped balance does that and closes the drain-then-spam gap. Sponsored gas and parallel lanes
-          are what that guarantee hands to app developers.
+          (protocol version 85) so a transaction's fee is guaranteed before it executes; a prepaid, key-scoped
+          balance does that and closes the drain-then-spam gap.
         </p>
         <p class="section-summary">
           Gas keys ship in <code>@fastnear/api</code> 2.4.0+ — <code>npm i @fastnear/api</code>, or
@@ -134,77 +139,77 @@
 
       <div class="docs-grid">
         <article class="card">
-          <div class="card-kicker">The tank</div>
+          <div class="card-kicker">What a gas key is</div>
           <ul class="hero-points">
             <li>
-              Two permissions, added with the ordinary <code>AddKey</code> action:
-              <code>GasKeyFullAccess { balance, num_nonces }</code> and
-              <code>GasKeyFunctionCall { balance, num_nonces, allowance: null, receiver_id, method_names }</code>.
-              <code>balance</code> must start at <code>"0"</code> — you fund it afterwards.
+              <strong>Two permissions</strong>, added with the ordinary <code>AddKey</code>:
+              <code>GasKeyFullAccess { balance, num_nonces }</code>, or
+              <code>GasKeyFunctionCall { balance, num_nonces, receiver_id, method_names }</code> scoped to
+              one contract like a function-call key.
             </li>
             <li>
-              A function-call gas key cannot carry an <code>allowance</code>: the balance is the allowance,
-              and an <code>AddKey</code> that sets one is rejected.
+              <strong>Balance starts at 0.</strong> <code>AddKey</code> cannot set one; fund it afterwards. A
+              function-call gas key has no <code>allowance</code> (the view shows <code>allowance: null</code>):
+              the balance is the allowance.
             </li>
             <li>
-              <code>TransferToGasKey { publicKey, deposit }</code> may be sent by <strong>any account</strong>;
-              the deposit leaves the sender, and the transaction's <code>receiverId</code> is the key's owner.
-              <code>WithdrawFromGasKey { publicKey, amount }</code> must be signed by the owner
-              (<code>signerId === receiverId</code>) and lands on the owner's account — a top-up is a gift to
-              the key; only the owner can take it back out, and only to itself.
+              <strong>Lanes.</strong> <code>num_nonces</code> (1 to 1,024) independent nonce sequences. A send
+              names its lane with <code>nonceIndex</code>; lanes never wait on each other, and one lane is
+              sequential. The <code>AddKey</code> fee grows with the count.
             </li>
             <li>
-              Removal is the ordinary <code>DeleteKey</code>. It refuses if the key holds more than 1 NEAR and
-              burns whatever remains below that.
-            </li>
-            <li>
-              Everything out is a decimal string: <code>balance</code> is yoctoNEAR.
-              <code>near.gasKeyInfoFromPermission</code> takes the permission view and returns
+              <strong>Strings out.</strong> <code>balance</code> is yoctoNEAR as a decimal string.
+              <code>near.gasKeyInfoFromPermission</code> turns a <code>view_access_key</code> permission into
               <code>{ balance, num_nonces, functionCall }</code>, or <code>null</code> for a classical key.
             </li>
           </ul>
         </article>
 
         <article class="card">
-          <div class="card-kicker">Lanes and the wire</div>
+          <div class="card-kicker">Who can do what</div>
           <ul class="hero-points">
             <li>
-              <code>num_nonces</code> is 1..1024 independent nonce lanes. Lanes do not wait on each other;
-              sends on one lane are sequential. The <code>AddKey</code> fee grows with <code>numNonces</code>.
+              <strong>Fund: anyone.</strong> <code>TransferToGasKey { publicKey, deposit }</code> may be sent
+              by any account. The deposit leaves the sender; the transaction's receiver is the key's owner.
+              The sponsor never needs the key.
             </li>
             <li>
-              <code>sendTx({ signer, signerId, nonceIndex, nonceMode })</code> reads the key's permission from
-              <code>view_access_key</code>; on a <code>GasKey*</code> permission it signs a
-              <strong>TransactionV1</strong>: a <code>0x01</code> prefix, a
-              <code>GasKeyNonce { nonce, nonceIndex }</code>, and a trailing <code>NonceMode</code>. The default
-              lane is <code>0</code>.
+              <strong>Withdraw: the owner only.</strong> <code>WithdrawFromGasKey { publicKey, amount }</code>
+              must be signed by the owning account and pays out to that account. A sponsor cannot pull a
+              top-up back.
             </li>
             <li>
-              <code>nonceMode: "monotonic"</code> (default) requires the nonce to exceed the stored one;
-              <code>"strict"</code> requires exactly stored + 1.
+              <strong>Delete: the owner, after draining.</strong> The ordinary <code>DeleteKey</code>. It
+              refuses if the key holds more than 1 NEAR and burns whatever is left below that.
             </li>
             <li>
-              A gas key's <code>view_access_key</code> nonce is always <code>0</code>. Read the lanes with
-              <code>near.queryGasKeyNonces</code> (<code>request_type: "view_gas_key_nonces"</code> →
-              <code>{ nonces: [...] }</code>); a classical key answers <code>UNKNOWN_GAS_KEY</code>.
+              <strong>Sign: the key itself</strong>, on a lane.
+              <code>sendTx({ signer, signerId, nonceIndex })</code> detects the <code>GasKey*</code> permission
+              and signs a TransactionV1. Gas from the key, deposits from the account. It cannot sign a NEP-366
+              delegate.
             </li>
           </ul>
         </article>
 
         <article class="card">
-          <div class="card-kicker">Versus a relayer, versus an allowance</div>
+          <div class="card-kicker">When to reach for it</div>
           <ul class="hero-points">
             <li>
-              <a class="jump-link" href="./meta-transactions.html">NEP-366 meta-transaction</a>: the relayer
-              signs and pays each transaction, so it must be online for every one. Gas key: the sponsor sends
-              one <code>TransferToGasKey</code> and is not involved again until the tank runs low.
+              <strong>Sponsor a user without a relayer.</strong> A
+              <a class="jump-link" href="./meta-transactions.html">NEP-366 relayer</a> signs and pays every
+              transaction, so it must be online for each one. A gas-key sponsor funds once and steps away
+              until the balance runs low.
             </li>
             <li>
-              Function-call key <code>allowance</code>: still the account's own NEAR, spent from the account.
-              Gas key: a separate pot on the key that any account can refill.
+              <strong>Many sends from one key.</strong> A classical key serializes on its single nonce. Four
+              lanes let four workers send at once.
             </li>
             <li>
-              The two do not compose: a gas key cannot sign a delegate action
+              <strong>Not an allowance.</strong> A function-call key's <code>allowance</code> is the account's
+              own NEAR, spent from the account. A gas key is a separate balance any account can refill.
+            </li>
+            <li>
+              <strong>Not for delegates.</strong> A gas key cannot sign a delegate action
               (<code>near.signDelegate</code> refuses it), and <code>WithdrawFromGasKey</code> is refused
               inside a delegate.
             </li>
@@ -217,12 +222,12 @@
         <div class="callout-copy">
           <strong class="callout-title">Before you start</strong>
           <p class="callout-body">
-            Wallets do not expose gas keys yet: <code>@fastnear/wallet</code> and the wallet adapter refuse
-            gas-key actions and <code>nonceIndex</code> with an error, and <code>near.signDelegate</code>
-            refuses a gas-key signer — everything here signs locally with
-            <code>sendTx({ signer, signerId })</code>. And <code>DeleteKey</code> burns whatever balance the
-            key still holds (refusing above 1 NEAR), so drain with <code>WithdrawFromGasKey</code> first;
-            the last card below does both in one transaction.
+            Wallets do not expose gas keys yet. <code>@fastnear/wallet</code> and the wallet adapter refuse
+            gas-key actions and <code>nonceIndex</code> with a clear error, and <code>near.signDelegate</code>
+            refuses a gas-key signer, so everything on this page signs locally with
+            <code>sendTx({ signer, signerId })</code>. Also, <code>DeleteKey</code> burns whatever balance the
+            key still holds (and refuses above 1 NEAR): drain with <code>WithdrawFromGasKey</code> first. The
+            last card below does both in one transaction.
           </p>
         </div>
       </div>
@@ -241,7 +246,7 @@
           the sponsor, funds it with <code>TransferToGasKey</code>. The user's client then calls
           <code>increase</code> signed by the gas key: the user's account balance is unchanged by the call,
           the key's balance drops by the gas burnt, and the gas refund lands back on the key. The sponsor is
-          not on the path of that call and is only involved again when the tank needs topping up — and any
+          not on the path of that call and is only involved again when the balance needs topping up — and any
           account, not just the original sponsor, can do that.
         </p>
         <p class="section-summary">
@@ -351,11 +356,14 @@ export async function fundGasKey({ funderId, funderSigner, accountId, publicKey,
               <div class="card-kicker">Send with the gas key</div>
               <p class="code-card-context">
                 The user's transaction. <code>signer</code> is the gas key, <code>signerId</code> is the user, and
-                <code>nonceIndex</code> picks the lane (default <code>0</code>); <code>sendTx</code> sees the
-                <code>GasKey*</code> permission and signs a TransactionV1. For the counter,
-                <code>receiverId</code> is <code>count.mike.testnet</code> and <code>methodName</code> is
-                <code>increase</code>. <code>sendOnTwoLanes</code> is the lanes story in two lines — widen
-                <code>[0, 1]</code> to <code>[0, 1, 2, 3]</code> for a key added with <code>numNonces: 4</code>.
+                <code>nonceIndex</code> picks the lane (default <code>0</code>). <code>sendTx</code> sees the
+                <code>GasKey*</code> permission and signs a TransactionV1: a <code>0x01</code> prefix, a
+                <code>GasKeyNonce { nonce, nonceIndex }</code>, and a trailing <code>NonceMode</code>
+                (<code>"monotonic"</code> by default, nonce &gt; stored; <code>"strict"</code>, exactly
+                stored + 1). For the counter, <code>receiverId</code> is <code>count.mike.testnet</code> and
+                <code>methodName</code> is <code>increase</code>. <code>sendOnTwoLanes</code> is the lanes story
+                in two lines; widen <code>[0, 1]</code> to <code>[0, 1, 2, 3]</code> for a key added with
+                <code>numNonces: 4</code>.
               </p>
             </div>
           </div>
@@ -398,10 +406,12 @@ export const sendOnTwoLanes = (params) =&gt;
               <div class="card-kicker">Inspect balance and lanes</div>
               <p class="code-card-context">
                 Three reads at finality: <code>view_access_key</code> for balance, lane count, and function-call
-                scope; <code>view_gas_key_nonces</code> for one nonce per lane; the key list to confirm the key
-                is present. Run it before and after <code>sendOnTwoLanes</code> to watch lanes 0 and 1 each
-                advance by one. <code>queryAccessKeyList</code> now paginates — pass <code>limit</code> and page
-                with <code>afterKey</code>; more than 100 keys is refused unpaginated.
+                scope; <code>view_gas_key_nonces</code> for one nonce per lane (the key's own
+                <code>view_access_key</code> nonce is always 0, and a classical key answers
+                <code>UNKNOWN_GAS_KEY</code>); the key list to confirm the key is present. Run it before and
+                after <code>sendOnTwoLanes</code> to watch lanes 0 and 1 each advance by one.
+                <code>queryAccessKeyList</code> now paginates: pass <code>limit</code> and page with
+                <code>afterKey</code>; more than 100 keys is refused unpaginated.
               </p>
             </div>
           </div>
