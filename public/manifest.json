@@ -2,33 +2,6 @@
   "version": "1.1.0",
   "wallets": [
     {
-      "id": "mynearwallet",
-      "name": "MyNearWallet",
-      "icon": "https://storage.herewallet.app/upload/d0544304123d10518af961a15d5722ff1cef7abf62155f830e6d733e41f7da4b.png",
-      "description": "Web wallet for NEAR.",
-      "website": "https://mynearwallet.com",
-      "version": "1.0.0",
-      "executor": "https://raw.githubusercontent.com/fastnear/near-connect/refs/heads/main/repository/mnw.js",
-      "type": "sandbox",
-      "platform": {
-        "web": "https://app.mynearwallet.com"
-      },
-      "features": {
-        "signMessage": true,
-        "signInWithoutAddKey": true,
-        "signAndSendTransaction": true,
-        "signAndSendTransactions": true,
-        "testnet": true
-      },
-      "permissions": {
-        "storage": true,
-        "allowsOpen": [
-          "https://app.mynearwallet.com",
-          "https://testnet.mynearwallet.com"
-        ]
-      }
-    },
-    {
       "id": "intear-wallet",
       "name": "Intear Wallet",
       "icon": "https://storage.herewallet.app/upload/3f24b26bb142cd65ee694b78f8b3004976ebd97d9fc82f4c07d99b27bc124672.png",
@@ -94,7 +67,10 @@
           "https://wallet.meteorwallet.app",
           "https://meteorwallet.app"
         ],
-        "external": ["meteorCom", "meteorComV2"]
+        "external": [
+          "meteorCom",
+          "meteorComV2"
+        ]
       }
     },
     {
@@ -114,7 +90,9 @@
       },
       "permissions": {
         "storage": true,
-        "external": ["okxwallet.near"],
+        "external": [
+          "okxwallet.near"
+        ],
         "allowsOpen": [
           "https://www.okx.com",
           "https://apps.apple.com",
@@ -151,7 +129,11 @@
       },
       "permissions": {
         "storage": true,
-        "allowsOpen": ["https://nearmobile.app", "https://play.google.com", "https://apps.apple.com"]
+        "allowsOpen": [
+          "https://nearmobile.app",
+          "https://play.google.com",
+          "https://apps.apple.com"
+        ]
       }
     },
     {
@@ -168,8 +150,13 @@
       },
       "permissions": {
         "storage": true,
-        "external": ["nightly.near"],
-        "allowsOpen": ["https://nightly.app", "https://chromewebstore.google.com/detail/nightly/fiikommddbeccaoicoejoniammnalkfa"]
+        "external": [
+          "nightly.near"
+        ],
+        "allowsOpen": [
+          "https://nightly.app",
+          "https://chromewebstore.google.com/detail/nightly/fiikommddbeccaoicoejoniammnalkfa"
+        ]
       },
       "features": {
         "signMessage": true,
