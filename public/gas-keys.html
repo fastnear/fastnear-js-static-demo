@@ -132,8 +132,9 @@
           <code>&lt;script src="https://js.fastnear.com/<wbr>near.js"&gt;&lt;/script&gt;</code> for the
           <code>near</code> global — with no extra package. The RPC you point at must report
           <code>protocol_version</code> 85 or later; check with <code>near.queryProtocolVersion()</code>.
-          Mainnet and testnet both do at the time of writing. Everything on this page signs locally with
-          <code>sendTx({ signer, signerId })</code>.
+          Mainnet and testnet both do at the time of writing. Every card on this page signs locally with
+          <code>sendTx({ signer, signerId })</code>; the wallet path for adding, funding and draining a key is
+          in the callout below.
         </p>
       </div>
 
@@ -222,12 +223,14 @@
         <div class="callout-copy">
           <strong class="callout-title">Before you start</strong>
           <p class="callout-body">
-            Wallets do not expose gas keys yet. <code>@fastnear/wallet</code> and the wallet adapter refuse
-            gas-key actions and <code>nonceIndex</code> with a clear error, and <code>near.signDelegate</code>
-            refuses a gas-key signer, so everything on this page signs locally with
-            <code>sendTx({ signer, signerId })</code>. Also, <code>DeleteKey</code> burns whatever balance the
-            key still holds (and refuses above 1 NEAR): drain with <code>WithdrawFromGasKey</code> first. The
-            last card below does both in one transaction.
+            Adding, funding and draining a gas key through a wallet works with <code>@fastnear/wallet</code>
+            2.5.0+ and a near-connect 0.14.1+ wallet whose manifest sets <code>features.gasKeys</code> — Meteor
+            Wallet, verified on testnet on 2026-09-24. Wallets without the flag are refused rather than risk a
+            downgraded key. Signing <em>with</em> a gas key (<code>nonceIndex</code>) is always local:
+            <code>near.signDelegate</code> refuses a gas-key signer and no wallet holds the lane nonce, so every
+            card on this page signs with <code>sendTx({ signer, signerId })</code>. Also, <code>DeleteKey</code>
+            burns whatever balance the key still holds (and refuses above 1 NEAR): drain with
+            <code>WithdrawFromGasKey</code> first. The last card below does both in one transaction.
           </p>
         </div>
       </div>
