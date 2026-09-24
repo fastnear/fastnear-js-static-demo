@@ -1245,6 +1245,13 @@ body.is-signed-in .hero-shell { order: 2; }
     padding: 0.75rem 0.85rem;
 }
 
+/* A callout that follows a card grid inside a section sits flush against the
+   grid's last row otherwise; give it the same breathing room as the grid gap. */
+.section-shell > .docs-grid + .callout,
+.section-shell > .console-card-grid + .callout {
+    margin-top: 1rem;
+}
+
 .callout-copy {
     min-width: 0;
 }

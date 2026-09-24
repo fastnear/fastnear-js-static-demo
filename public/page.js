@@ -1,6 +1,7 @@
-// Shared chrome for the static topic pages (x402.html, post-quantum.html,
-// retries.html). Keeps the theme toggle and code-card buttons working without
-// loading the demo-app module (index.js). The theme storage contract (the
+// Shared chrome for the static topic pages (transactions, meta-transactions,
+// gas-keys, accounts, intents, x402, post-quantum, retries). Keeps the theme
+// toggle and code-card buttons working without loading the demo-app module
+// (index.js). The theme storage contract (the
 // "theme" localStorage key + the root "dark" class) matches index.js exactly,
 // so the choice persists across the landing page and every topic page.
 

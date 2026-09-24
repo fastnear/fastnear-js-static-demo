@@ -176,6 +176,8 @@
         <span class="topic-nav-sep" aria-hidden="true">·</span>
         <a class="topic-nav-link" href="./meta-transactions.html">Meta-tx</a>
         <span class="topic-nav-sep" aria-hidden="true">·</span>
+        <a class="topic-nav-link" href="./gas-keys.html">Gas keys</a>
+        <span class="topic-nav-sep" aria-hidden="true">·</span>
         <a class="topic-nav-link" href="./accounts.html">Accounts</a>
         <span class="topic-nav-sep" aria-hidden="true">·</span>
         <a class="topic-nav-link" href="./intents.html">Intents</a>
@@ -563,6 +565,107 @@
       </div>
     </section>
 
+    <section class="section-shell" id="gas-keys">
+      <div class="section-header">
+        <div class="section-kicker">Gas keys <span class="badge-pill badge-pill-subtle">New</span></div>
+        <h2 class="section-title">Give an access key its own gas balance.</h2>
+        <p class="section-summary">
+          A <strong>gas key</strong> (NEP-611, protocol version 85) is an access key with a prepaid balance
+          that pays the gas for whatever the key signs. Deposits still come from the account; gas refunds
+          return to the key. Any account can top it up with <code>TransferToGasKey</code>, so a sponsor funds
+          a user once instead of relaying every transaction, and <code>num_nonces</code> gives one key up to
+          1,024 independent nonce lanes for parallel sends. It ships in <code>@fastnear/api</code> 2.4.0+
+          with no extra package.
+        </p>
+      </div>
+      <div class="console-card-grid">
+        <article class="card">
+          <div class="card-kicker">How it works</div>
+          <ul class="hero-points">
+            <li>
+              Add it with the ordinary <code>AddKey</code> and a <code>GasKeyFullAccess</code> or
+              <code>GasKeyFunctionCall</code> permission — <code>addFullAccessGasKey</code> /
+              <code>addLimitedAccessGasKey</code> on <code>near.actions</code>. The balance starts at
+              <code>"0"</code>; a function-call gas key has no <code>allowance</code> — the balance is the limit.
+            </li>
+            <li>
+              Fund it from any account with <code>transferToGasKey({ publicKey, deposit })</code>;
+              the receiver is the key's owner. Only the owner can <code>withdrawFromGasKey</code>.
+            </li>
+            <li>
+              Sign with <code>sendTx({ signer, signerId, nonceIndex })</code>. On a gas key it emits a
+              TransactionV1 scoped to that lane, and lanes don't wait on each other. Read lanes with
+              <code>near.queryGasKeyNonces</code> — <code>view_access_key</code> reports nonce <code>0</code>
+              for a gas key.
+            </li>
+            <li>
+              Drain with <code>WithdrawFromGasKey</code> before <code>DeleteKey</code>, which burns what's left
+              (refusing above 1 NEAR). Wallets don't expose gas keys yet — local signing only.
+            </li>
+          </ul>
+        </article>
+
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Send on a lane, read the lanes back</div>
+              <p class="code-card-context">
+                From the <code>gasKeys</code> quickstarts (ESM). <code>sendTx</code> reads the key's
+                <code>GasKey*</code> permission, fetches the chosen lane's nonce, and signs a TransactionV1; gas
+                comes from the key balance. Needs <code>@fastnear/api</code> 2.4.0+ and an RPC on protocol 85.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="gk-snippet">import { actions, queryGasKeyNonces, sendTx } from "@fastnear/api";
+
+export async function sendWithGasKey({ accountId, gasSigner, receiverId, nonceIndex = 0 }) {
+  const result = await sendTx({
+    signerId: accountId,
+    signer: gasSigner,
+    receiverId,
+    actions: [actions.functionCall({ methodName: "ping", args: {}, gas: "30 Tgas", deposit: "0" })],
+    nonceIndex,
+    waitUntil: "FINAL",
+    network: "testnet",
+  });
+
+  const nonces = await queryGasKeyNonces({
+    accountId,
+    publicKey: gasSigner.publicKey,
+    blockId: "final",
+    network: "testnet",
+  });
+  return { txHash: result.transaction?.hash ?? null, nonces: nonces.result.nonces };
+}
+
+// Lanes are independent nonce sequences, so these do not serialize behind each other.
+export const sendOnTwoLanes = (params) =&gt;
+  Promise.all([0, 1].map((nonceIndex) =&gt; sendWithGasKey({ ...params, nonceIndex })));</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#gk-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+
+        <div class="callout callout-info callout-compact">
+          <span class="callout-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg></span>
+          <div class="callout-copy">
+            <strong class="callout-title">Local signing, protocol 85</strong>
+            <p class="callout-body">
+              Gas keys need an RPC on protocol version 85 or later (<code>queryProtocolVersion()</code>)
+              and sign locally — <code>@fastnear/wallet</code> refuses gas-key shapes for now. Read the
+              <a class="jump-link" href="./gas-keys.html">full explainer</a> for the sponsored-counter and
+              lanes walkthroughs, the wire format, and the drain-before-delete rule. All five quickstarts —
+              add, fund, send, inspect, withdraw-delete — live under <code>gasKeys</code> in
+              <a class="jump-link" data-hosted-asset-link="recipes" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="section-shell" id="post-quantum">
       <div class="section-header">
         <div class="section-kicker">Post-quantum keys <span class="badge-pill badge-pill-subtle">New</span></div>
@@ -871,6 +974,7 @@ await sendTx({
         <span class="nav-label">Topics</span>
         <a class="nav-link jump-link" href="./transactions.html">Constructing a transaction</a>
         <a class="nav-link jump-link" href="./meta-transactions.html">Gasless meta-transactions</a>
+        <a class="nav-link jump-link" href="./gas-keys.html">Prepaid gas keys</a>
         <a class="nav-link jump-link" href="./accounts.html">Keys &amp; accounts</a>
         <a class="nav-link jump-link" href="./intents.html">NEAR Intents</a>
         <a class="nav-link jump-link" href="./x402.html">x402 payments</a>
