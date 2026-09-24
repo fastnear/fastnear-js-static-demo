@@ -5,7 +5,7 @@
   <meta content="width=device-width,initial-scale=1.0" name="viewport" />
   <title>x402 payments on NEAR — FastNear JS</title>
   <meta
-    content="Pay x402-protected URLs with NEAR using @fastnear/x402: browser wallet payers, Node payers, seller resource servers, and self-hosted facilitators — x402 v2 exact payments settled as NEP-141 token transfers."
+    content="Pay x402-protected URLs with NEAR using @fastnear/x402: browser wallet payers, Node payers, seller resource servers, self-hosted facilitators, and the public reference facilitators on mainnet and testnet — x402 v2 exact payments settled as NEP-141 token transfers."
     name="description"
   />
   <link href="assets/favicon.png" rel="icon" type="image/png" />
@@ -195,7 +195,7 @@
           <ul class="surface-list">
             <li>Import: <code>@fastnear/x402/server</code></li>
             <li>Factory: <code>createNearResourceServer</code></li>
-            <li>Secrets: usually none; the facilitator is configured explicitly — there is no default</li>
+            <li>Secrets: the facilitator&#8217;s per-instance API key, server-side only; the facilitator is configured explicitly — there is no default</li>
           </ul>
         </article>
 
@@ -218,11 +218,11 @@
     <section class="section-shell" id="quickstarts">
       <div class="section-header">
         <div class="section-kicker">Quickstarts</div>
-        <h2 class="section-title">Two payer paths, one paid-fetch helper.</h2>
+        <h2 class="section-title">Two payer paths, one seller core.</h2>
         <p class="section-summary">
           Both paths end in <code>createNearPaymentFetch</code>: a drop-in <code>fetch</code> that answers
-          a 402 challenge by paying, then retries the request. The seller quickstart and the full
-          facilitator surface live in the <code>x402</code> key of
+          a 402 challenge by paying, then retries the request. The seller card points at a reference
+          facilitator; the full facilitator-operator surface lives in the <code>x402</code> key of
           <a class="jump-link" href="./recipes.json" rel="noopener noreferrer" target="_blank">recipes.json</a>.
         </p>
       </div>
@@ -306,6 +306,41 @@ console.log(await response.json());</code></pre>
           </div>
         </article>
 
+        <article class="code-card console-card">
+          <div class="code-card-head">
+            <div>
+              <div class="card-kicker">Seller</div>
+              <p class="code-card-context">
+                The quickstart from the catalog (ESM). Point <code>X402_FACILITATOR_URL</code> at a
+                reference instance below and keep <code>X402_FACILITATOR_API_KEY</code> in server-side
+                secrets; the header hook attaches it to verify and settle only.
+              </p>
+            </div>
+          </div>
+          <div class="code-block">
+            <pre class="code-card-body"><code id="x402-seller-snippet">import { createNearResourceServer } from "@fastnear/x402/server";
+
+const { X402_FACILITATOR_URL, X402_FACILITATOR_API_KEY } = process.env;
+if (!X402_FACILITATOR_URL) throw new Error("X402_FACILITATOR_URL is required");
+
+// The reference facilitators gate POST /verify and /settle behind a per-instance
+// X-API-Key (GET /supported is public); a self-hosted one may need no key.
+const authHeaders = X402_FACILITATOR_API_KEY ? { "X-API-Key": X402_FACILITATOR_API_KEY } : {};
+
+export const resourceServer = createNearResourceServer({
+  facilitators: {
+    url: X402_FACILITATOR_URL,
+    createAuthHeaders: async () =&gt; ({ verify: authHeaders, settle: authHeaders, supported: {} }),
+  },
+});
+await resourceServer.initialize();</code></pre>
+            <div class="code-actions">
+              <button class="code-action code-wrap-button" type="button" title="Toggle word wrap" aria-label="Toggle word wrap" aria-pressed="false" hidden><svg class="code-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3l3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"/></svg></button>
+              <button class="code-action code-copy-button" type="button" title="Copy" aria-label="Copy code to clipboard" data-clipboard-target="#x402-seller-snippet"><svg class="code-action-icon code-action-icon--copy" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/></svg><svg class="code-action-icon code-action-icon--check" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></button>
+            </div>
+          </div>
+        </article>
+
         <div class="callout callout-info callout-compact">
           <span class="callout-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg></span>
           <div class="callout-copy">
@@ -317,6 +352,67 @@ console.log(await response.json());</code></pre>
               documented as compatible.
             </p>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-shell" id="facilitators">
+      <div class="section-header">
+        <div class="section-kicker">Reference facilitators</div>
+        <h2 class="section-title">A facilitator you can point at today.</h2>
+        <p class="section-summary">
+          The public reference instances of
+          <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://github.com/fastnear/x402-facilitator" rel="noopener noreferrer" target="_blank">fastnear/x402-facilitator</a>
+          (open source) advertise x402 v2 <code>exact</code> on both NEAR networks with a zero
+          facilitator fee, verified 2026-09-24. Sellers configure one of them; payers only ever see
+          the seller&#8217;s 402 challenge.
+        </p>
+      </div>
+
+      <div class="docs-grid">
+        <article class="card">
+          <div class="card-kicker">near:mainnet</div>
+          <h3 class="card-title">x402.mikedotexe.com</h3>
+          <p class="card-summary">
+            Settles Circle USDC on NEAR mainnet; the relayer pays gas and the 1-yoctoNEAR deposit.
+          </p>
+          <ul class="surface-list">
+            <li>URL: <code>https://<wbr>x402<wbr>.mikedotexe.com</code></li>
+            <li>Live capabilities: <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://x402.mikedotexe.com/supported" rel="noopener noreferrer" target="_blank">/supported</a>, agent onboarding at <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://x402.mikedotexe.com/llms.txt" rel="noopener noreferrer" target="_blank">/llms.txt</a></li>
+            <li>Asset: Circle USDC <code>17208628f84f5d6a<wbr>d33f0da3bbbeb27f<wbr>fcb398eac501a31b<wbr>d6ad2011e36133a1</code></li>
+            <li>Relayer: <code>x402-relayer2.mike.near</code></li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <div class="card-kicker">near:testnet</div>
+          <h3 class="card-title">test.x402.mikedotexe.com</h3>
+          <p class="card-summary">
+            Settles Circle USDC on NEAR testnet; the relayer pays gas and the 1-yoctoNEAR deposit.
+          </p>
+          <ul class="surface-list">
+            <li>URL: <code>https://<wbr>test.x402<wbr>.mikedotexe.com</code></li>
+            <li>Live capabilities: <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://test.x402.mikedotexe.com/supported" rel="noopener noreferrer" target="_blank">/supported</a>, agent onboarding at <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://test.x402.mikedotexe.com/llms.txt" rel="noopener noreferrer" target="_blank">/llms.txt</a></li>
+            <li>Asset: Circle USDC <code>3e2210e1184b45b6<wbr>4c8a434c0a7e7b23<wbr>cc04ea7eb7a6c3c3<wbr>2520d03d4afcb8af</code></li>
+            <li>Relayer: <code>x402-relayer.mike.testnet</code></li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="callout callout-info callout-compact">
+        <span class="callout-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg></span>
+        <div class="callout-copy">
+          <strong class="callout-title">Access</strong>
+          <p class="callout-body">
+            <code>GET /supported</code>, <code>/llms.txt</code> and <code>/openapi.yaml</code> are public on
+            each instance. <code>POST /verify</code> and <code>POST /settle</code> need a per-instance
+            <code>X-API-Key</code> (an identical Bearer token also works), approved manually per
+            resource-server instance and environment through the
+            <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://github.com/fastnear/x402-facilitator/blob/main/docs/reference-access.md" rel="noopener noreferrer" target="_blank">reference-access guide</a>
+            and never placed in browser or payer code. Payers need no key. Other providers are listed in
+            the
+            <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://docs.x402.org/dev-tools/facilitators" rel="noopener noreferrer" target="_blank">x402 facilitator directory</a>.
+          </p>
         </div>
       </div>
     </section>
@@ -365,7 +461,9 @@ console.log(await response.json());</code></pre>
             <a class="jump-link" href="./llms.txt" rel="noopener noreferrer" target="_blank">llms.txt</a>
             before editing an app. Humans: the canonical package guide is the
             <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://github.com/fastnear/js-monorepo/blob/main/packages/x402/README.md" rel="noopener noreferrer" target="_blank">@fastnear/x402 README</a>,
-            and the facilitator directory lives at
+            the reference facilitator&#8217;s source and access guide live in
+            <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://github.com/fastnear/x402-facilitator" rel="noopener noreferrer" target="_blank">fastnear/x402-facilitator</a>,
+            and other providers are listed at
             <a class="jump-link external-link-indicator external-link-indicator-pill" href="https://docs.x402.org/dev-tools/facilitators" rel="noopener noreferrer" target="_blank">docs.x402.org</a>.
           </p>
         </div>
